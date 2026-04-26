@@ -62,6 +62,29 @@ const GameContainer: React.FC<Props> = ({ socket, role, userName }) => {
     });
   }, [gameState, myStream, remoteStreams, socket.id]);
 
+  // Event-Listener für die Leertaste
+useEffect(() => {
+  const handleKeyDown = (event: KeyboardEvent) => {
+    // 1. Prüfen, ob es die Leertaste ist (Code "Space")
+    // 2. Prüfen, ob der Spieler überhaupt buzzern darf
+    // 3. Verhindern, dass die Seite nach unten scrollt (preventDefault)
+    if (event.code === 'Space') {
+      if (role === 'player' && !gameState?.buzzer_locked && !gameState?.active_player && gameState?.current_question) {
+        event.preventDefault();
+        socket.emit('buzz');
+      }
+    }
+  };
+
+  // Listener hinzufügen
+  window.addEventListener('keydown', handleKeyDown);
+
+  // WICHTIG: Listener entfernen, wenn die Komponente entladen wird
+  return () => {
+    window.removeEventListener('keydown', handleKeyDown);
+  };
+}, [gameState, role, socket]);
+
   // --- WINNING LOGIC ---
   const allQuestionsOpened = gameState?.board?.categories?.every((cat: any) => 
     cat.questions.every((q: any) => gameState.opened_questions.includes(q.id))
