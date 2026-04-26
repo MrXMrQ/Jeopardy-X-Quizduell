@@ -156,6 +156,21 @@ async def close_question(sid):
         game.active_player = None
         game.update_turn()
         await broadcast_state()
+        
+@sio.event
+async def reset_game(sid):
+    # Nur der Moderator darf das Spiel zurücksetzen
+    if sid == game.moderator_sid:
+        logger.info("Spiel wird vom Moderator zurückgesetzt!")
+        game.opened_questions = []
+        game.current_question = None
+        game.active_player = None
+        game.buzzer_locked = True
+        # Optional: Punkte auch auf 0 setzen?
+        for p_sid in game.players:
+            game.players[p_sid]['points'] = 0
+            
+        await broadcast_state()
 
 if __name__ == '__main__':
     web.run_app(app, port=5000)
