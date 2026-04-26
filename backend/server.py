@@ -1,47 +1,52 @@
 import json
 import os
-import logging
 import socketio
-
+import logging
 from aiohttp import web
-from typing import Dict, List, Any, Optional, Union
+from typing import Dict, List, Any, Optional
 
-# Configure Logging
+# Logging configuration
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 logger = logging.getLogger(__name__)
 
 class JeopardyGame:
     """
-    Main Logic class for the Jeopardy Game State with Type Hints.
+    Object-oriented management of the Jeopardy game state.
     """
-    def __init__(self, board_file: str = "board_1.json") -> None:
-        # sid: {"name": str, "points": int}
-        self.players: Dict[str, Dict[str, Any]] = {} 
+    def __init__(self, board_file: str = "./questions/board_1.json"):
+        self.players: Dict[str, Dict[str, Any]] = {}
+        self.player_order: List[str] = []  # Hält die Reihenfolge der SIDs für die Turns
         self.moderator_sid: Optional[str] = None
         self.opened_questions: List[str] = []
         self.current_question: Optional[Dict[str, Any]] = None
         self.show_answer: bool = False
         self.buzzer_locked: bool = True
         self.active_player: Optional[Dict[str, str]] = None
-        
         self.board: Dict[str, Any] = self._load_board(board_file)
+        self.current_turn_index: int = 0
 
     def _load_board(self, filename: str) -> Dict[str, Any]:
-        """Loads and parses the JSON board file."""
         if not os.path.exists(filename):
-            logger.error(f"Board file {filename} not found!")
+            logger.error(f"File {filename} not found!")
             return {"board_name": "Error", "categories": []}
-        
-        try:
-            with open(filename, 'r', encoding='utf-8') as f:
-                logger.info(f"Loading board: {filename}")
-                return json.load(f)
-        except Exception as e:
-            logger.error(f"Failed to load board: {e}")
-            return {"board_name": "Error", "categories": []}
+        with open(filename, 'r', encoding='utf-8') as f:
+            return json.load(f)
+
+    def update_turn(self):
+        """Erhöht den Index für den nächsten Spieler."""
+        if not self.player_order:
+            return
+        self.current_turn_index = (self.current_turn_index + 1) % len(self.player_order)
+        logger.info(f"Nächster Turn Index: {self.current_turn_index}")
+
+    def get_current_chooser_name(self) -> str:
+        """Gibt den Namen des Spielers zurück, der gerade wählen darf."""
+        if not self.player_order:
+            return "Warten auf Spieler..."
+        current_sid = self.player_order[self.current_turn_index]
+        return self.players.get(current_sid, {}).get('name', "Unbekannt")
 
     def get_full_state(self) -> Dict[str, Any]:
-        """Returns the serializable state for broadcasting."""
         return {
             "board": self.board,
             "players": self.players,
@@ -50,100 +55,88 @@ class JeopardyGame:
             "current_question": self.current_question,
             "show_answer": self.show_answer,
             "buzzer_locked": self.buzzer_locked,
-            "active_player": self.active_player
+            "active_player": self.active_player,
+            "current_turn_index": self.current_turn_index,
+            "current_chooser": self.get_current_chooser_name() # Direkt den Namen für das Frontend mitschicken
         }
 
-    def add_player(self, sid: str, name: str) -> None:
-        self.players[sid] = {"name": name, "points": 0}
-        logger.info(f"Player joined: {name} ({sid})")
-
-    def set_moderator(self, sid: str) -> None:
-        self.moderator_sid = sid
-        logger.info(f"Moderator assigned: {sid}")
-
-    def remove_client(self, sid: str) -> None:
-        if sid in self.players:
-            logger.info(f"Player left: {self.players[sid]['name']}")
-            del self.players[sid]
-        if sid == self.moderator_sid:
-            logger.info("Moderator disconnected")
-            self.moderator_sid = None
-
-port: int = 5000
-sio: socketio.AsyncServer = socketio.AsyncServer(async_mode='aiohttp', cors_allowed_origins='*')
-app: web.Application = web.Application()
+# --- Server & Game Instance ---
+sio = socketio.AsyncServer(async_mode='aiohttp', cors_allowed_origins='*')
+app = web.Application()
 sio.attach(app)
-game: JeopardyGame = JeopardyGame()
+game = JeopardyGame()
 
-async def broadcast_state() -> None:
-    """Utility to sync all clients with the current game state."""
+async def broadcast_state():
     await sio.emit('state_update', game.get_full_state())
 
-async def health_check(request: web.Request) -> web.Response:
-    """Simple health check for the server."""
-    return web.Response(text="Jeopardy Backend is running 🚀", status=200)
+# --- API Routes ---
+async def health_check(request):
+    return web.Response(text="🚀 Jeopardy Backend Online", status=200)
 
 app.router.add_get('/health', health_check)
 
-@sio.event
-async def connect(sid: str, environ: Dict[str, Any]) -> None:
-    logger.info(f"Connection attempt: {sid}")
+# --- Socket Events ---
 
 @sio.event
-async def disconnect(sid: str) -> None:
-    game.remove_client(sid)
+async def connect(sid, environ):
+    logger.info(f"Connected: {sid}")
+
+@sio.event
+async def disconnect(sid):
+    if sid in game.players:
+        del game.players[sid]
+    if sid in game.player_order:
+        # Index anpassen, damit der Turn nicht übersprungen wird oder out-of-bounds geht
+        idx = game.player_order.index(sid)
+        game.player_order.remove(sid)
+        if len(game.player_order) > 0:
+            game.current_turn_index %= len(game.player_order)
+        else:
+            game.current_turn_index = 0
+            
+    if sid == game.moderator_sid:
+        game.moderator_sid = None
+    logger.info(f"Disconnected: {sid}")
     await broadcast_state()
 
 @sio.event
-async def join_game(sid: str, data: Dict[str, str]) -> None:
-    """
-    Handles initial registration.
-    data: {"role": "player"|"moderator", "name": str}
-    """
-    role: Optional[str] = data.get('role')
+async def join_game(sid, data):
+    role = data.get('role')
     if role == 'moderator':
-        game.set_moderator(sid)
+        game.moderator_sid = sid
+        logger.info(f"Moderator joined: {sid}")
     else:
-        name: str = data.get('name', f"Player {len(game.players) + 1}")
-        game.add_player(sid, name)
-    
+        name = data.get('name', f"Player {len(game.players) + 1}")
+        game.players[sid] = {"name": name, "points": 0}
+        if sid not in game.player_order:
+            game.player_order.append(sid)
+        logger.info(f"Player joined: {name} ({sid})")
     await broadcast_state()
 
 @sio.event
-async def open_question(sid: str, data: Dict[str, str]) -> None:
-    """
-    Moderator selects a question from the board.
-    data: {"question_id": str}
-    """
-    if sid != game.moderator_sid: 
-        return
-
-    q_id: Optional[str] = data.get('question_id')
+async def open_question(sid, data):
+    if sid != game.moderator_sid: return
     
-    # Searching for the question in the nested board structure
-    for cat in game.board.get('categories', []):
-        for q in cat.get('questions', []):
-            if q.get('id') == q_id:
+    q_id = data.get('question_id')
+    for cat in game.board['categories']:
+        for q in cat['questions']:
+            if q['id'] == q_id:
                 game.current_question = q
-                game.buzzer_locked = True 
-                game.show_answer = False
+                game.buzzer_locked = True
                 game.active_player = None
-                logger.info(f"Question revealed: {q.get('text')}")
+                game.show_answer = False
                 break
-    
     await broadcast_state()
 
 @sio.event
-async def arm_buzzer(sid: str) -> None:
-    """Moderator enables buzzing."""
-    if sid == game.moderator_sid and game.current_question:
+async def arm_buzzer(sid):
+    if sid == game.moderator_sid:
         game.buzzer_locked = False
-        logger.info("Buzzers ARMED")
+        logger.info("Buzzers armed!")
         await broadcast_state()
 
 @sio.event
-async def buzz(sid: str) -> None:
-    """Player attempts to buzz in."""
+async def buzz(sid):
     if not game.buzzer_locked and game.current_question and not game.active_player:
         if sid in game.players:
             game.buzzer_locked = True
@@ -151,53 +144,56 @@ async def buzz(sid: str) -> None:
                 "sid": sid,
                 "name": game.players[sid]["name"]
             }
-            logger.info(f"Buzzer hit by: {game.active_player['name']}")
+            logger.info(f"BUZZ: {game.active_player['name']}")
             await broadcast_state()
-
-@sio.event
-async def toggle_answer(sid: str) -> None:
-    """Moderator reveals the answer text."""
-    if sid == game.moderator_sid:
-        game.show_answer = not game.show_answer
-        await broadcast_state()
 
 @sio.event
 async def resolve_question(sid: str, data: Dict[str, bool]) -> None:
     """
-    Moderator awards or deducts points.
-    data: {"correct": bool}
+    Moderator Entscheidung:
+    Richtig -> Volle Punkte, Frage wird geschlossen, Turn wechselt.
+    Falsch -> Abzug, Frage bleibt offen für andere, Buzzer wird wieder scharf!
     """
     if sid != game.moderator_sid or not game.active_player or not game.current_question:
         return
 
-    target_sid: str = game.active_player['sid']
-    value: int = game.current_question.get('value', 0)
+    player_sid = game.active_player['sid']
+    value = game.current_question['value']
 
     if data.get('correct'):
-        game.players[target_sid]['points'] += value
+        # --- RICHTIGE ANTWORT ---
+        game.players[player_sid]['points'] += value
+        # Frage final schließen
         game.opened_questions.append(game.current_question['id'])
         game.current_question = None
         game.active_player = None
-        logger.info(f"Correct answer. {target_sid} awarded {value}")
+        game.buzzer_locked = True
+        game.update_turn() # Nächster darf eine neue Kategorie wählen
+        logger.info(f"Richtig: {game.players[player_sid]['name']} +{value}")
     else:
-        # Penalty is half the value
-        penalty: int = int(value / 2)
-        game.players[target_sid]['points'] -= penalty
+        # --- FALSCHE ANTWORT ---
+        penalty = int(value / 2)
+        game.players[player_sid]['points'] -= penalty
+        
+        # WICHTIG: Frage NICHT schließen!
+        # Buzzer wieder scharf schalten für die anderen Spieler
         game.active_player = None
-        game.buzzer_locked = False # Unlock for other players
-        logger.info(f"Wrong answer. {target_sid} deducted {penalty}")
+        game.buzzer_locked = False 
+        
+        logger.info(f"Falsch: {game.players[player_sid]['name']} -{penalty}. Frage wieder freigegeben.")
 
     await broadcast_state()
 
 @sio.event
-async def close_question(sid: str) -> None:
-    """Moderator closes question without points awarded."""
-    if sid == game.moderator_sid:
-        if game.current_question:
-            game.opened_questions.append(game.current_question['id'])
+async def close_question(sid):
+    """Schließt die Frage (Niemand wusste es), Feld wird deaktiviert, Turn wechselt."""
+    if sid == game.moderator_sid and game.current_question:
+        game.opened_questions.append(game.current_question['id'])
         game.current_question = None
         game.active_player = None
+        game.buzzer_locked = True
+        game.update_turn()
         await broadcast_state()
 
 if __name__ == '__main__':
-    web.run_app(app, host='0.0.0.0', port=port)
+    web.run_app(app, port=5000)
