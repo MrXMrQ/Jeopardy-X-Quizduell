@@ -1,0 +1,65 @@
+{
+    "board_name": "[NAME]",
+    "categories": [
+        {
+            "name": "[NAME CATEGORIE 1]",
+            "questions": [
+                {"id": "q1", "value": 100, "text": "[QUESTION]", "answer": "[ANSWER]"},
+                {"id": "q2", "value": 200, "text": "[QUESTION]", "answer": "[ANSWER]"},
+                {"id": "q3", "value": 300, "text": "[QUESTION]", "answer": "[ANSWER]"},
+                {"id": "q4", "value": 400, "text": "[QUESTION]", "answer": "[ANSWER]"},
+                {"id": "q5", "value": 500, "text": "[QUESTION]", "answer": "[ANSWER]"}
+            ]
+        },
+        {
+            "name": "[NAME CATEGORIE 2]",
+            "questions": [
+                {"id": "q1", "value": 100, "text": "[QUESTION]", "answer": "[ANSWER]"},
+                {"id": "q2", "value": 200, "text": "[QUESTION]", "answer": "[ANSWER]"},
+                {"id": "q3", "value": 300, "text": "[QUESTION]", "answer": "[ANSWER]"},
+                {"id": "q4", "value": 400, "text": "[QUESTION]", "answer": "[ANSWER]"},
+                {"id": "q5", "value": 500, "text": "[QUESTION]", "answer": "[ANSWER]"}
+            ]
+        },
+        {
+            "name": "[NAME CATEGORIE 3]",
+            "questions": [
+                {"id": "q1", "value": 100, "text": "[QUESTION]", "answer": "[ANSWER]"},
+                {"id": "q2", "value": 200, "text": "[QUESTION]", "answer": "[ANSWER]"},
+                {"id": "q3", "value": 300, "text": "[QUESTION]", "answer": "[ANSWER]"},
+                {"id": "q4", "value": 400, "text": "[QUESTION]", "answer": "[ANSWER]"},
+                {"id": "q5", "value": 500, "text": "[QUESTION]", "answer": "[ANSWER]"}
+            ]
+        },
+        {
+            "name": "[NAME CATEGORIE 4]",
+            "questions": [
+                {"id": "q1", "value": 100, "text": "[QUESTION]", "answer": "[ANSWER]"},
+                {"id": "q2", "value": 200, "text": "[QUESTION]", "answer": "[ANSWER]"},
+                {"id": "q3", "value": 300, "text": "[QUESTION]", "answer": "[ANSWER]"},
+                {"id": "q4", "value": 400, "text": "[QUESTION]", "answer": "[ANSWER]"},
+                {"id": "q5", "value": 500, "text": "[QUESTION]", "answer": "[ANSWER]"}
+            ]
+        },
+        {
+            "name": "[NAME CATEGORIE 5]",
+            "questions": [
+                {"id": "q1", "value": 100, "text": "[QUESTION]", "answer": "[ANSWER]"},
+                {"id": "q2", "value": 200, "text": "[QUESTION]", "answer": "[ANSWER]"},
+                {"id": "q3", "value": 300, "text": "[QUESTION]", "answer": "[ANSWER]"},
+                {"id": "q4", "value": 400, "text": "[QUESTION]", "answer": "[ANSWER]"},
+                {"id": "q5", "value": 500, "text": "[QUESTION]", "answer": "[ANSWER]"}
+            ]
+        },
+        {
+            "name": "[NAME CATEGORIE 6]",
+            "questions": [
+                {"id": "q1", "value": 100, "text": "[QUESTION]", "answer": "[ANSWER]"},
+                {"id": "q2", "value": 200, "text": "[QUESTION]", "answer": "[ANSWER]"},
+                {"id": "q3", "value": 300, "text": "[QUESTION]", "answer": "[ANSWER]"},
+                {"id": "q4", "value": 400, "text": "[QUESTION]", "answer": "[ANSWER]"},
+                {"id": "q5", "value": 500, "text": "[QUESTION]", "answer": "[ANSWER]"}
+            ]
+        }
+    ]
+}
