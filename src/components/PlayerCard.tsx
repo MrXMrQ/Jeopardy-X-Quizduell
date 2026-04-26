@@ -5,11 +5,12 @@ interface Props {
   points: number;
   isBuzzed: boolean;
   stream?: MediaStream | null;
-  isLocalPlayer?: boolean; // Neu: Zeigt den Button nur für den Besitzer an
-  onToggleCam?: () => void; // Neu: Callback für den GameContainer
+  isLocalPlayer?: boolean; 
+  onToggleCam?: () => void;
+  hidePoints?: boolean; // Neu: Um Punkte (beim Moderator) auszublenden
 }
 
-const PlayerCard: React.FC<Props> = ({ name, points, isBuzzed, stream, isLocalPlayer, onToggleCam }) => {
+const PlayerCard: React.FC<Props> = ({ name, points, isBuzzed, stream, isLocalPlayer, onToggleCam, hidePoints }) => {
   const videoRef = useRef<HTMLVideoElement>(null);
 
   useEffect(() => {
@@ -22,27 +23,35 @@ const PlayerCard: React.FC<Props> = ({ name, points, isBuzzed, stream, isLocalPl
     <div style={{
       ...styles.card,
       border: isBuzzed ? '4px solid #22c55e' : '2px solid #333',
-      boxShadow: isBuzzed ? '0 0 20px rgba(34, 197, 94, 0.5)' : 'none'
+      boxShadow: isBuzzed ? '0 0 20px rgba(34, 197, 94, 0.5)' : 'none',
+      // Falls Punkte versteckt sind (Mod), Karte etwas kompakter machen
+      width: hidePoints ? '220px' : '280px'
     }}>
-      <div style={styles.videoPlaceholder}>
+      <div style={{
+        ...styles.videoPlaceholder,
+        height: hidePoints ? '120px' : '160px' // Mod-Video etwas kleiner
+      }}>
         {stream ? (
           <video
             ref={videoRef}
             autoPlay
             playsInline
             muted={true} 
-            style={styles.videoElement}
+            style={{
+              ...styles.videoElement,
+              // Nur den eigenen lokalen Stream spiegeln, Remote-Streams normal zeigen
+              transform: isLocalPlayer ? 'scaleX(-1)' : 'none'
+            }}
           />
         ) : (
           <div style={{ color: '#444', textAlign: 'center' }}>
-            <div style={{ fontSize: '2rem' }}>👤</div>
-            <div style={{ fontSize: '0.8rem' }}>Kamera aus</div>
+            <div style={{ fontSize: hidePoints ? '1.5rem' : '2rem' }}>👤</div>
+            <div style={{ fontSize: '0.7rem' }}>Kamera aus</div>
           </div>
         )}
         
         {isBuzzed && <div style={styles.buzzerBadge}>🔔 GEBUZZERT</div>}
 
-        {/* Kamera-Button für den lokalen Spieler */}
         {isLocalPlayer && (
           <button onClick={onToggleCam} style={styles.camBtn}>
             {stream ? '📷 Stop' : '📷 Start'}
@@ -50,9 +59,19 @@ const PlayerCard: React.FC<Props> = ({ name, points, isBuzzed, stream, isLocalPl
         )}
       </div>
 
-      <div style={styles.statsBar}>
-        <span style={styles.name}>{name}:</span>
-        <span style={styles.points}>{points}</span>
+      <div style={{
+        ...styles.statsBar,
+        background: hidePoints ? '#222' : '#581c87', // Mod bekommt eine neutralere Farbe
+        height: hidePoints ? '35px' : '45px',
+        fontSize: hidePoints ? '0.9rem' : '1.1rem'
+      }}>
+        <span style={styles.name}>{name}</span>
+        {!hidePoints && (
+          <>
+            <span style={{ color: 'rgba(255,255,255,0.5)' }}>|</span>
+            <span style={styles.points}>{points}</span>
+          </>
+        )}
       </div>
     </div>
   );
@@ -60,7 +79,6 @@ const PlayerCard: React.FC<Props> = ({ name, points, isBuzzed, stream, isLocalPl
 
 const styles: Record<string, React.CSSProperties> = {
   card: { 
-    width: '280px', 
     borderRadius: '12px', 
     overflow: 'hidden', 
     background: '#000', 
@@ -69,7 +87,6 @@ const styles: Record<string, React.CSSProperties> = {
     flexDirection: 'column'
   },
   videoPlaceholder: { 
-    height: '160px', 
     background: '#111', 
     position: 'relative', 
     display: 'flex', 
@@ -80,52 +97,47 @@ const styles: Record<string, React.CSSProperties> = {
   videoElement: {
     width: '100%',
     height: '100%',
-    objectFit: 'cover',
-    transform: 'scaleX(-1)' 
+    objectFit: 'cover'
   },
   camBtn: {
     position: 'absolute',
-    bottom: '10px',
-    left: '10px',
+    bottom: '8px',
+    left: '8px',
     background: 'rgba(0, 0, 0, 0.7)',
     color: 'white',
     border: '1px solid rgba(255, 255, 255, 0.3)',
     borderRadius: '6px',
-    padding: '4px 8px',
+    padding: '3px 6px',
     cursor: 'pointer',
-    fontSize: '0.75rem',
-    zIndex: 20,
-    transition: 'background 0.2s'
+    fontSize: '0.7rem',
+    zIndex: 20
   },
   buzzerBadge: { 
     position: 'absolute', 
-    top: '10px', 
-    right: '10px', // Auf "right" geändert, damit es nicht mit dem Button kollidiert
+    top: '8px', 
+    right: '8px', 
     background: '#22c55e', 
     color: 'white', 
-    padding: '5px 10px', 
+    padding: '4px 8px', 
     borderRadius: '5px', 
     fontWeight: 'bold', 
-    fontSize: '0.8rem',
+    fontSize: '0.75rem',
     zIndex: 10 
   },
   statsBar: { 
-    height: '45px', 
-    background: '#581c87', 
     display: 'flex', 
     alignItems: 'center', 
     justifyContent: 'center', 
-    gap: '10px', 
+    gap: '8px', 
     color: 'white', 
-    fontWeight: 'bold', 
-    fontSize: '1.1rem' 
+    fontWeight: 'bold' 
   },
   name: { color: '#fff' },
   points: { 
     color: '#a855f7', 
     background: '#fff', 
-    padding: '2px 8px', 
-    borderRadius: '5px' 
+    padding: '1px 6px', 
+    borderRadius: '4px' 
   }
 };
 
