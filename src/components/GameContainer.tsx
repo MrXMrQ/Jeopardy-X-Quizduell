@@ -172,7 +172,16 @@ useEffect(() => {
             <h2 style={{ color: '#a855f7', fontSize: '1.5rem', marginBottom: '10px' }}>
               {gameState.current_question.value} Punkte
             </h2>
-            <p style={{ fontSize: '2.5rem', margin: '20px 0', fontWeight: 'bold' }}>
+            {/* Die Frage mit dynamischem Blur */}
+            <p style={{ 
+              fontSize: '2.5rem', 
+              margin: '20px 0', 
+              fontWeight: 'bold',
+              // NEU: Wenn Buzzer gesperrt sind, wird der Text geblurred
+              filter: (role === 'player' && gameState.buzzer_locked) ? 'blur(12px)' : 'none',
+              transition: 'filter 0.5s ease', // Schöner Übergang beim Entblurren
+              userSelect: 'none' // Verhindert, dass man den Text markiert, um den Blur zu umgehen
+              }}>
               {gameState.current_question.text}
             </p>
 
