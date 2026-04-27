@@ -51,16 +51,24 @@ class JeopardyGame:
             "current_turn_index": self.current_turn_index,
             "current_chooser": self.get_current_chooser_name()
         }
+        
+async def health_check(request) -> Any:
+    return web.json_response({
+        "status": "ok",
+        "connections": len(game.players),
+        "moderator_online": game.moderator_sid is not None
+    })
 
 # --- Server & Game Instance ---
 sio = socketio.AsyncServer(async_mode='aiohttp', cors_allowed_origins='*')
 app = web.Application()
 sio.attach(app)
+app.router.add_get('/health', health_check)
 game = JeopardyGame()
 
-async def broadcast_state():
+async def broadcast_state() -> None:
     await sio.emit('state_update', game.get_full_state())
-
+    
 # --- Socket Events ---
 
 @sio.event
