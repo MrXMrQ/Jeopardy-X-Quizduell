@@ -1,4 +1,5 @@
 import React from 'react';
+import '../css/GameBoard.css';
 
 interface BoardProps {
   boardData: any;
@@ -9,21 +10,21 @@ interface BoardProps {
 
 const GameBoard: React.FC<BoardProps> = ({ boardData, openedQuestions, isModerator, onSelectQuestion }) => {
   return (
-    <div style={styles.grid}>
+    <div className="board-grid">
       {boardData.categories.map((cat: any, i: number) => (
-        <div key={i} style={styles.column}>
-          <div style={styles.catHeader}>{cat.name}</div>
+        <div key={i} className="board-column">
+          <div className="category-header">{cat.name}</div>
           {cat.questions.map((q: any) => {
             const isPlayed = openedQuestions.includes(q.id);
+            const isSelectable = isModerator && !isPlayed;
+
+            const cellClass = `question-cell ${isPlayed ? 'played' : ''} ${isSelectable ? 'selectable' : ''}`;
+
             return (
               <div
                 key={q.id}
-                onClick={() => !isPlayed && isModerator && onSelectQuestion(q.id)}
-                style={{
-                  ...styles.questionCell,
-                  opacity: isPlayed ? 0.2 : 1,
-                  cursor: isModerator && !isPlayed ? 'pointer' : 'default'
-                }}
+                onClick={() => isSelectable && onSelectQuestion(q.id)}
+                className={cellClass}
               >
                 {q.value}
               </div>
@@ -34,12 +35,5 @@ const GameBoard: React.FC<BoardProps> = ({ boardData, openedQuestions, isModerat
     </div>
   );
 };
-
-const styles = {
-  grid: { display: 'flex', gap: '15px', justifyContent: 'center', padding: '20px' },
-  column: { display: 'flex', flexDirection: 'column', gap: '10px', width: '160px' },
-  catHeader: { backgroundColor: '#a855f7', color: 'white', padding: '15px 5px', borderRadius: '15px', textAlign: 'center', fontWeight: 'bold', fontSize: '0.8rem' },
-  questionCell: { backgroundColor: '#4c1d95', color: 'white', padding: '20px', borderRadius: '10px', textAlign: 'center', fontSize: '1.5rem', fontWeight: 'bold' }
-} as const;
 
 export default GameBoard;

@@ -1,6 +1,7 @@
-import { useEffect, useState, useRef } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 import Peer from 'peerjs';
 import PlayerCard from './PlayerCard';
+import '../css/GameContainer.css';
 
 interface Props {
   socket: any;
@@ -15,23 +16,18 @@ const GameContainer: React.FC<Props> = ({ socket, role, userName }) => {
   
   const peerInstance = useRef<Peer | null>(null);
 
-  // 1. Game State vom Server empfangen
   useEffect(() => {
     socket.on('state_update', (state: any) => setGameState(state));
     return () => { socket.off('state_update'); };
   }, [socket]);
 
-  // 2. PeerJS Initialisierung
   useEffect(() => {
     const peer = new Peer(); 
     peerInstance.current = peer;
-
     peer.on('open', (id) => {
       socket.emit('update_peer_id', { peerId: id });
     });
-
     peer.on('call', (call) => {
-      // FIX: Falls myStream null ist, übergeben wir null (PeerJS handelt das intern)
       call.answer(myStream as MediaStream); 
       call.on('stream', (incomingStream) => {
         const callerSid = call.metadata.callerSid;
@@ -40,43 +36,26 @@ const GameContainer: React.FC<Props> = ({ socket, role, userName }) => {
         }
       });
     });
-
-    return () => {
-      peer.destroy();
-    };
+    return () => { peer.destroy(); };
   }, [socket, myStream]);
 
-  // 3. Verbesserte Logik: Andere Spieler anrufen
   useEffect(() => {
     if (!gameState || !peerInstance.current) return;
-
     Object.entries(gameState.players).forEach(([sid, p]: any) => {
       if (sid !== socket.id && p.peerId && !remoteStreams[sid]) {
-        
-        console.log(`Versuche ${p.name} anzurufen...`);
-        
         setTimeout(() => {
           if (!peerInstance.current || peerInstance.current.destroyed) return;
-
-          // FIX: Wir casten myStream hier sicherheitshalber oder rufen ohne Stream an
           const call = peerInstance.current.call(p.peerId, myStream as MediaStream, {
             metadata: { callerSid: socket.id }
           });
-
           call?.on('stream', (incomingStream) => {
-            console.log(`Stream von ${p.name} empfangen!`);
             setRemoteStreams(prev => ({ ...prev, [sid]: incomingStream }));
-          });
-
-          call?.on('error', (err) => {
-            console.error("Call Fehler:", err);
           });
         }, 500);
       }
     });
   }, [gameState, myStream, remoteStreams, socket.id]);
 
-  // Event-Listener für die Leertaste
   useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent) => {
       if (event.code === 'Space') {
@@ -90,17 +69,13 @@ const GameContainer: React.FC<Props> = ({ socket, role, userName }) => {
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [gameState, role, socket]);
 
-  // --- WINNING LOGIC ---
   const allQuestionsOpened = gameState?.board?.categories?.every((cat: any) => 
     cat.questions.every((q: any) => gameState.opened_questions.includes(q.id))
   );
 
   const getWinner = () => {
     if (!gameState) return null;
-    const playersArray = Object.entries(gameState.players).map(([sid, p]: any) => ({
-      sid,
-      ...p
-    }));
+    const playersArray = Object.entries(gameState.players).map(([sid, p]: any) => ({ sid, ...p }));
     if (playersArray.length === 0) return null;
     return playersArray.reduce((prev, current) => (prev.points > current.points) ? prev : current);
   };
@@ -127,9 +102,9 @@ const GameContainer: React.FC<Props> = ({ socket, role, userName }) => {
   if (!gameState) return <div style={{ color: 'white' }}>Lade...</div>;
 
   return (
-  <div style={styles.page}>
-    <div style={styles.topSection}>
-      <div style={styles.modBox}>
+  <div className="game-page">
+    <div className="top-section">
+      <div className="mod-box">
         <p style={{ margin: 0, fontSize: '0.8rem', color: '#a855f7' }}>Angemeldet als:</p>
         <strong style={{ fontSize: '1.1rem' }}>{userName}</strong>
         <p style={{ margin: '5px 0 0 0', fontSize: '0.7rem', opacity: 0.7 }}>
@@ -137,16 +112,16 @@ const GameContainer: React.FC<Props> = ({ socket, role, userName }) => {
         </p>
       </div>
 
-      <div style={styles.logoContainer}>
-        <h1 style={styles.logoText}>QUIZ DUELL</h1>
+      <div className="logo-container">
+        <h1 className="logo-text">QUIZ DUELL</h1>
         {!gameState.current_question && (
-          <div style={styles.turnBanner}>
-            <span style={styles.turnText}>✨ {gameState.current_chooser} sucht aus! ✨</span>
+          <div className="turn-banner">
+            <span className="turn-text">✨ {gameState.current_chooser} sucht aus! ✨</span>
           </div>
         )}
       </div>
 
-      <div style={styles.moderatorStreamContainer}>
+      <div className="moderator-stream-container">
         {gameState.moderator_sid ? (
           <PlayerCard
             key={gameState.moderator_sid}
@@ -159,31 +134,38 @@ const GameContainer: React.FC<Props> = ({ socket, role, userName }) => {
             hidePoints={true}
           />
         ) : (
-          <div style={styles.noModText}>Warten auf Moderator...</div>
+          <div className="no-mod-text">Warten auf Moderator...</div>
         )}
       </div>
     </div>
 
-    <div style={styles.boardGrid}>
-      {gameState.board.categories.map((cat: any) => (
-        <div key={cat.name} style={styles.column}>
-          <div style={styles.categoryHeader}>{cat.name}</div>
-          {cat.questions.map((q: any) => {
-            const isPlayed = gameState.opened_questions.includes(q.id);
-            return (
-              <div key={q.id}
-                style={{ ...styles.questionCard, backgroundColor: isPlayed ? '#2d2d2d' : '#4c1d95', color: isPlayed ? '#555' : 'white', cursor: role === 'moderator' && !isPlayed ? 'pointer' : 'default' }}
-                onClick={() => role === 'moderator' && !isPlayed && socket.emit('open_question', { question_id: q.id })}
-              >
-                {isPlayed ? "X" : q.value}
-              </div>
-            );
-          })}
-        </div>
-      ))}
-    </div>
+    <div className="board-grid">
+    {gameState.board.categories.map((cat: any) => (
+      <div key={cat.name} className="board-column">
+        <div className="category-header">{cat.name}</div>
+        {cat.questions.map((q: any) => {
+          const isPlayed = gameState.opened_questions.includes(q.id);
+        
+          const cardClass = `question-card ${isPlayed ? 'played' : 'active'}`;
+        
+          return (
+            <div 
+              key={q.id}
+              className={cardClass}
+              style={{ 
+                cursor: (role === 'moderator' && !isPlayed) ? 'pointer' : 'default' 
+              }}
+              onClick={() => role === 'moderator' && !isPlayed && socket.emit('open_question', { question_id: q.id })}
+            >
+              {isPlayed ? "X" : q.value}
+            </div>
+          );
+        })}
+      </div>
+    ))}
+  </div>
 
-    <div style={styles.playerRow}>
+    <div className="player-row">
       {Object.entries(gameState.players)
         .filter(([sid]) => sid !== gameState.moderator_sid)
         .map(([sid, p]: any) => (
@@ -200,32 +182,25 @@ const GameContainer: React.FC<Props> = ({ socket, role, userName }) => {
     </div>
 
     {gameState.current_question && (
-      <div style={styles.overlay}>
-        <div style={styles.questionBox}>
+      <div className="game-overlay">
+        <div className="question-box">
           <h2 style={{ color: '#a855f7', fontSize: '1.5rem', marginBottom: '10px' }}>
             {gameState.current_question.value} Punkte
           </h2>
-          <p style={{ 
-            fontSize: '2.5rem', 
-            margin: '20px 0', 
-            fontWeight: 'bold',
-            filter: (role === 'player' && gameState.buzzer_locked) ? 'blur(12px)' : 'none',
-            transition: 'filter 0.5s ease',
-            userSelect: 'none'
-            }}>
+          <p className={`question-text-display ${(role === 'player' && gameState.buzzer_locked) ? 'blurred' : ''}`}>
             {gameState.current_question.text}
           </p>
 
           {role === 'moderator' && (
-            <div style={styles.modControls}>
+            <div className="mod-controls">
               <p style={{ color: '#22c55e', fontSize: '1.8rem', marginBottom: '20px', fontWeight: 'bold' }}>
                 Lösung: {gameState.current_question.answer}
               </p>
 
               <div style={{ display: 'flex', gap: '15px', justifyContent: 'center' }}>
                 <button 
+                  className="control-btn"
                   style={{ 
-                    ...styles.controlBtn, 
                     backgroundColor: gameState.buzzer_locked ? '#3f3f46' : '#22c55e',
                     boxShadow: !gameState.buzzer_locked ? '0 0 15px #22c55e' : 'none'
                   }} 
@@ -235,46 +210,19 @@ const GameContainer: React.FC<Props> = ({ socket, role, userName }) => {
                   {gameState.buzzer_locked ? '🔓 Freigeben' : '✅ Aktiv'}
                 </button>
 
-                <button 
-                  style={{ ...styles.controlBtn, background: '#16a34a' }} 
-                  onClick={() => socket.emit('resolve_question', { correct: true })}
-                  disabled={!gameState.active_player}
-                >
-                  Richtig (+)
-                </button>
-
-                <button 
-                  style={{ ...styles.controlBtn, background: '#dc2626' }} 
-                  onClick={() => socket.emit('resolve_question', { correct: false })}
-                  disabled={!gameState.active_player}
-                >
-                  Falsch (-)
-                </button>
-
-                <button 
-                  style={{ ...styles.controlBtn, background: '#52525b' }} 
-                  onClick={() => socket.emit('close_question')}
-                >
-                  Niemand wusste es
-                </button>
+                <button className="control-btn" style={{ background: '#16a34a' }} onClick={() => socket.emit('resolve_question', { correct: true })} disabled={!gameState.active_player}>Richtig (+)</button>
+                <button className="control-btn" style={{ background: '#dc2626' }} onClick={() => socket.emit('resolve_question', { correct: false })} disabled={!gameState.active_player}>Falsch (-)</button>
+                <button className="control-btn" style={{ background: '#52525b' }} onClick={() => socket.emit('close_question')}>Niemand wusste es</button>
               </div>
             </div>
           )}
 
           {role === 'player' && !gameState.buzzer_locked && !gameState.active_player && (
-            <button style={styles.buzzerBtn} onClick={() => socket.emit('buzz')}>
-              JETZT BUZZERN!
-            </button>
+            <button className="buzzer-btn" onClick={() => socket.emit('buzz')}>JETZT BUZZERN!</button>
           )}
 
           {gameState.active_player && (
-            <div style={{ 
-              color: '#fbbf24', 
-              fontSize: '2.2rem', 
-              marginTop: '30px', 
-              fontWeight: 'bold',
-              textShadow: '0 0 10px rgba(251, 191, 36, 0.5)' 
-            }}>
+            <div style={{ color: '#fbbf24', fontSize: '2.2rem', marginTop: '30px', fontWeight: 'bold' }}>
               📢 {gameState.active_player.name} antwortet...
             </div>
           )}
@@ -283,18 +231,18 @@ const GameContainer: React.FC<Props> = ({ socket, role, userName }) => {
     )}
 
     {winner && (
-      <div style={styles.winnerOverlay}>
-        <div style={styles.winnerBox}>
-          <h1 style={styles.winnerTitle}>🏆 SPIEL BEENDET 🏆</h1>
-          <div style={styles.winnerName}>{winner.name} GEWINNT!</div>
-          <div style={styles.winnerPoints}>{winner.points} PUNKTE</div>
+      <div className="winner-overlay">
+        <div className="winner-box">
+          <h1 className="winner-title">🏆 SPIEL BEENDET 🏆</h1>
+          <div className="winner-name">{winner.name} GEWINNT!</div>
+          <div style={{ fontSize: '2.2rem', color: '#a855f7', fontWeight: 'bold', marginBottom: '40px' }}>{winner.points} PUNKTE</div>
       
-          <div style={styles.winnerStats}>
+          <div className="winner-stats">
             <h3 style={{ borderBottom: '1px solid #a855f7', paddingBottom: '10px' }}>Endstand</h3>
             {Object.entries(gameState.players)
               .sort(([, a]: any, [, b]: any) => b.points - a.points)
               .map(([sid, p]: any) => (
-                <div key={sid} style={styles.statLine}>
+                <div key={sid} className="stat-line">
                   <span>{p.name}</span>
                   <span style={{ fontWeight: 'bold', color: '#fbbf24' }}>{p.points}</span>
                 </div>
@@ -303,266 +251,13 @@ const GameContainer: React.FC<Props> = ({ socket, role, userName }) => {
           </div>
 
           {role === 'moderator' && (
-            <button 
-              style={styles.resetBtn} 
-              onClick={() => { 
-                if(window.confirm("Möchtest du das Spiel wirklich für ALLE zurücksetzen?")) {
-                  socket.emit('reset_game'); 
-                }
-              }}
-            >
-              NEUES SPIEL STARTEN
-            </button>
+            <button className="reset-btn" onClick={() => { if(window.confirm("...")) socket.emit('reset_game'); }}>NEUES SPIEL STARTEN</button>
           )}
         </div>
       </div>
     )}
   </div>
   );
-};
-
-const styles: Record<string, React.CSSProperties> = {
-  page: {
-    height: '100vh',
-    width: '100vw',
-    background: '#121212',
-    display: 'flex',
-    flexDirection: 'column',
-    overflow: 'hidden',
-    padding: '10px',
-    boxSizing: 'border-box',
-    position: 'relative'
-  },
-  topSection: {
-    display: 'flex',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    flexShrink: 0,
-    height: '180px',
-    marginBottom: '20px'
-  },
-  modBox: {
-    width: '250px',
-    height: '120px',
-    background: '#000',
-    border: '3px solid #a855f7',
-    borderRadius: '15px',
-    color: '#fff',
-    display: 'flex',
-    flexDirection: 'column',
-    alignItems: 'center',
-    justifyContent: 'center',
-    fontWeight: 'bold'
-  },
-  logoContainer: {
-    textAlign: 'center',
-    display: 'flex',
-    flexDirection: 'column',
-    alignItems: 'center'
-  },
-  logoText: {
-    fontSize: '2.5rem',
-    color: 'white',
-    fontWeight: 'bold',
-    textShadow: '0 0 15px #a855f7',
-    margin: 0
-  },
-  turnBanner: {
-    marginTop: '10px',
-    backgroundColor: '#581c87',
-    padding: '8px 25px',
-    borderRadius: '50px',
-    border: '2px solid #a855f7',
-    boxShadow: '0 0 15px rgba(168, 85, 247, 0.4)'
-  },
-  turnText: {
-    fontSize: '1.2rem',
-    color: '#fff',
-    fontWeight: 'bold',
-    textTransform: 'uppercase'
-  },
-  boardGrid: {
-    display: 'flex',
-    gap: '15px',
-    justifyContent: 'center',
-    flex: 1, 
-    padding: '10px 0',
-    overflowY: 'auto', 
-    minHeight: 0 
-  },
-  column: {
-    display: 'flex',
-    flexDirection: 'column',
-    gap: '8px',
-    width: '160px'
-  },
-  categoryHeader: {
-    background: '#a855f7',
-    padding: '10px 5px',
-    borderRadius: '15px',
-    textAlign: 'center',
-    color: 'white',
-    fontWeight: 'bold',
-    fontSize: '0.8rem',
-    minHeight: '50px',
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center'
-  },
-  questionCard: {
-    fontSize: '1.5rem',
-    fontWeight: 'bold',
-    padding: '15px 0',
-    borderRadius: '15px',
-    textAlign: 'center',
-    transition: 'all 0.2s',
-    border: 'none'
-  },
-  playerRow: {
-    display: 'flex',
-    gap: '15px',
-    justifyContent: 'center',
-    alignItems: 'center',
-    height: '200px', 
-    flexShrink: 0,
-    borderTop: '1px solid #333',
-    backgroundColor: 'rgba(18, 18, 18, 0.9)',
-    marginTop: '10px'
-  },
-  overlay: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    width: '100%',
-    height: '100%',
-    background: 'rgba(0,0,0,0.92)',
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-    zIndex: 100
-  },
-  questionBox: {
-    background: '#1e1e1e',
-    padding: '60px',
-    borderRadius: '30px',
-    textAlign: 'center',
-    color: 'white',
-    border: '2px solid #a855f7',
-    maxWidth: '85%',
-    boxShadow: '0 0 50px rgba(168, 85, 247, 0.3)'
-  },
-  buzzerBtn: {
-    padding: '30px 60px',
-    background: '#dc2626',
-    color: 'white',
-    borderRadius: '100px',
-    fontSize: '2rem',
-    border: 'none',
-    cursor: 'pointer',
-    fontWeight: 'bold',
-    boxShadow: '0 0 30px rgba(220, 38, 38, 0.6)'
-  },
-  modControls: {
-    marginTop: '30px',
-    display: 'flex',
-    flexDirection: 'column',
-    alignItems: 'center',
-    gap: '10px'
-  },
-  controlBtn: {
-    padding: '12px 24px',
-    borderRadius: '8px',
-    border: 'none',
-    color: 'white',
-    cursor: 'pointer',
-    background: '#3f3f46',
-    fontWeight: 'bold'
-  },
-  winnerOverlay: {
-    position: 'fixed',
-    top: 0,
-    left: 0,
-    width: '100vw',
-    height: '100vh',
-    background: 'rgba(0, 0, 0, 0.95)',
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-    zIndex: 9999,
-    backdropFilter: 'blur(10px)',
-  },
-  winnerBox: {
-    background: '#1a1a1a',
-    padding: '60px',
-    borderRadius: '30px',
-    border: '4px solid #fbbf24',
-    textAlign: 'center',
-    color: 'white',
-    boxShadow: '0 0 80px rgba(251, 191, 36, 0.3)',
-    maxWidth: '600px',
-    width: '90%',
-  },
-  winnerTitle: {
-    fontSize: '3.5rem',
-    color: '#fbbf24',
-    margin: 0,
-    textShadow: '0 0 20px rgba(251, 191, 36, 0.5)',
-  },
-  winnerName: {
-    fontSize: '4.5rem',
-    fontWeight: '900',
-    margin: '20px 0',
-    color: '#fff',
-    textTransform: 'uppercase',
-  },
-  winnerPoints: {
-    fontSize: '2.2rem',
-    color: '#a855f7',
-    fontWeight: 'bold',
-    marginBottom: '40px',
-  },
-  winnerStats: {
-    background: 'rgba(255,255,255,0.05)',
-    padding: '25px',
-    borderRadius: '20px',
-    textAlign: 'left',
-  },
-  statLine: {
-    display: 'flex',
-    justifyContent: 'space-between',
-    fontSize: '1.4rem',
-    margin: '10px 0',
-    padding: '5px 0',
-  },
-  resetBtn: {
-    marginTop: '40px',
-    padding: '18px 40px',
-    background: 'linear-gradient(45deg, #7c3aed, #a855f7)',
-    color: 'white',
-    border: 'none',
-    borderRadius: '15px',
-    fontSize: '1.3rem',
-    cursor: 'pointer',
-    fontWeight: 'bold',
-    boxShadow: '0 4px 15px rgba(168, 85, 247, 0.4)',
-    transition: 'transform 0.2s',
-  },
-  moderatorStreamContainer: {
-    width: '250px',
-    height: '180px',
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  noModText: {
-    color: '#444',
-    fontSize: '0.8rem',
-    textAlign: 'center',
-    border: '1px dashed #444',
-    borderRadius: '10px',
-    padding: '10px',
-    width: '100%'
-  }
 };
 
 export default GameContainer;
