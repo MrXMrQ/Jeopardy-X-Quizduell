@@ -1,5 +1,6 @@
 services:
   backend:
+    container_name: jeopardy-backend
     build:
       context: ./backend
       dockerfile: Dockerfile
@@ -9,6 +10,7 @@ services:
       - ./backend:/app
 
   frontend:
+    container_name: jeopardy-frontend
     build:
       context: .
       dockerfile: Dockerfile
