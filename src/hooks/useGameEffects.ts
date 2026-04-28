@@ -88,7 +88,6 @@ export const useGameEffects = (gameState: GameState | null, masterVolume: number
     }
 
     // 2. DETECT CORRECT ANSWER (The trigger for your sound)
-    // We check if the question is now resolved OR if points increased while active_player was present
     const isNowResolved = gameState.is_resolved && !prev?.is_resolved;
     
     // Check if points increased for the player who was just active
@@ -128,8 +127,8 @@ export const useGameEffects = (gameState: GameState | null, masterVolume: number
     }
 
     // 5. Evaluation: WRONG answer
-    // We already handled 'correct' in step 2. Here we handle 'wrong'.
-    if (!gameState.active_player && prev?.active_player && !wasCorrect) {
+    // We check for 'gameState.current_question' to prevent a jumpscare when closing the overlay
+    if (gameState.current_question && !gameState.active_player && prev?.active_player && !wasCorrect) {
       playSfx('wrong');
       // Stop think music, let Phase 3 restart wait music
       if (thinkMusicRef.current) {
@@ -138,7 +137,7 @@ export const useGameEffects = (gameState: GameState | null, masterVolume: number
       }
     }
 
-    // 6. Reset
+    // 6. Reset when closing the overlay
     if (!gameState.current_question && prev?.current_question) {
       stopAmbientMusic();
     }
