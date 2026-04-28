@@ -2,7 +2,8 @@ import React, { useEffect, useState } from 'react';
 import PlayerCard from './PlayerCard';
 import GameBoard from './GameBoard';             
 import QuestionOverlay from './QuestionOverlay';
-import WinnerOverlay from './WinnerOverlay';    
+import WinnerOverlay from './WinnerOverlay';
+import SettingsMenu from './SettingsMenu';
 import { useGameEffects } from '../hooks/useGameEffects';
 import { useWebRTC } from '../hooks/useWebRTC';
 import { useBuzzer } from '../hooks/useBuzzer';
@@ -17,6 +18,17 @@ interface Props {
 const GameContainer: React.FC<Props> = ({ socket, role, userName }) => {
   const [gameState, setGameState] = useState<any>(null);
 
+  const [isSettingsOpen, setIsSettingsOpen] = useState(false);
+  const [volume, setVolume] = useState<number>(() => {
+    const savedVolume = localStorage.getItem('quizVolume');
+    return savedVolume ? parseFloat(savedVolume) : 0.5;
+  });
+
+  const handleVolumeChange = (newVol: number) => {
+    setVolume(newVol);
+    localStorage.setItem('quizVolume', newVol.toString());
+  };
+
   // 1. Socket Listener
   useEffect(() => {
     socket.on('state_update', (state: any) => setGameState(state));
@@ -27,7 +39,7 @@ const GameContainer: React.FC<Props> = ({ socket, role, userName }) => {
   const { myStream, remoteStreams, handleToggleCam } = useWebRTC(socket, gameState);
   useBuzzer(socket, role, gameState);
 
-  useGameEffects(gameState, socket.id);
+  useGameEffects(gameState, volume);
 
   // 3. Helper-Funktionen
   const allQuestionsOpened = gameState?.board?.categories?.every((cat: any) => 
@@ -48,6 +60,14 @@ const GameContainer: React.FC<Props> = ({ socket, role, userName }) => {
 
   return (
     <div className="game-page">
+      {/* --- SETTINGS MODAL --- */}
+      <SettingsMenu 
+        isOpen={isSettingsOpen} 
+        onClose={() => setIsSettingsOpen(false)} 
+        volume={volume} 
+        setVolume={handleVolumeChange} 
+      />
+
       {/* --- HEADER --- */}
       <div className="top-section">
         <div className="mod-box">
@@ -92,7 +112,34 @@ const GameContainer: React.FC<Props> = ({ socket, role, userName }) => {
         socket={socket} 
       />
 
-      {/* --- SPIELER-REIHE --- */}
+      {/* --- SETTINGS BUTTON --- */}
+      <div style={{ position: 'relative', width: '100%' }}>
+        <button 
+          onClick={() => setIsSettingsOpen(true)}
+          style={{ 
+            position: 'absolute', 
+            bottom: '10px', 
+            right: '20px', 
+            zIndex: 10,
+            background: '#3f3f46', 
+            border: '1px solid #a855f7', 
+            borderRadius: '50%', 
+            width: '45px', 
+            height: '45px', 
+            fontSize: '1.4rem', 
+            cursor: 'pointer',
+            boxShadow: '0 0 10px rgba(168, 85, 247, 0.3)',
+            display: 'flex',
+            justifyContent: 'center',
+            alignItems: 'center'
+          }}
+          title="Settings"
+        >
+          ⚙️
+        </button>
+      </div>
+
+      {/* --- PLAYER-REIHE --- */}
       <div className="player-row">
         {Object.entries(gameState.players)
           .filter(([sid]) => sid !== gameState.moderator_sid)
