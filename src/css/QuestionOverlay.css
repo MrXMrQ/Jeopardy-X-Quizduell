@@ -91,3 +91,24 @@
   50% { transform: scale(1.05); }
   100% { transform: scale(1); }
 }
+
+.resolution-group {
+  display: flex;
+  gap: 10px;
+  margin: 15px 0;
+}
+
+.moderator-answer {
+  background: rgba(34, 197, 94, 0.15);
+  border: 1px solid #22c55e;
+  color: #22c55e;
+  padding: 15px;
+  border-radius: 8px;
+  margin-top: 20px;
+  font-size: 1.2rem;
+}
+
+.btn-arm.active {
+  background-color: #22c55e;
+  box-shadow: 0 0 15px rgba(34, 197, 94, 0.4);
+}

@@ -1,7 +1,7 @@
 import React, { useEffect, useRef } from 'react';
 import '../css/PlayerCard.css';
 
-interface Props {
+interface PlayerCardProps {
   name: string;
   points: number;
   isBuzzed: boolean;
@@ -11,7 +11,12 @@ interface Props {
   hidePoints?: boolean;
 }
 
-const PlayerCard: React.FC<Props> = ({ 
+/**
+ * PlayerCard Component
+ * Displays participant video feed, status badges, and points.
+ * Automatically handles the attachment of MediaStream to the video element.
+ */
+const PlayerCard: React.FC<PlayerCardProps> = ({ 
   name, 
   points, 
   isBuzzed, 
@@ -22,50 +27,70 @@ const PlayerCard: React.FC<Props> = ({
 }) => {
   const videoRef = useRef<HTMLVideoElement>(null);
 
+  /**
+   * Effect: Binds the MediaStream to the video DOM element whenever it changes.
+   */
   useEffect(() => {
     if (videoRef.current && stream) {
       videoRef.current.srcObject = stream;
     }
   }, [stream]);
 
-  const cardClasses = `player-card ${isBuzzed ? 'is-buzzed' : ''} ${hidePoints ? 'is-mod' : ''}`;
-  
+  // Construct dynamic class names based on state
+  const containerClasses = [
+    'player-card',
+    isBuzzed ? 'is-buzzed' : '',
+    hidePoints ? 'is-moderator-view' : ''
+  ].filter(Boolean).join(' ');
+
   return (
-    <div className={cardClasses}>
-      <div className="video-placeholder">
+    <div className={containerClasses}>
+      <header className="card-video-container">
         {stream ? (
           <video
             ref={videoRef}
             autoPlay
             playsInline
-            muted={true} 
-            className={`video-element ${isLocalPlayer ? 'video-mirrored' : ''}`}
+            muted={true} // Always muted to avoid echo in P2P mesh
+            className={`video-element ${isLocalPlayer ? 'mirrored' : ''}`}
           />
         ) : (
-          <div className="camera-off-text">
-            <div style={{ fontSize: hidePoints ? '1.5rem' : '2rem' }}>👤</div>
-            <div style={{ fontSize: '0.7rem' }}>Kamera aus</div>
+          <div className="camera-placeholder">
+            <span className="placeholder-icon">
+              {hidePoints ? '👑' : '👤'}
+            </span>
+            <span className="placeholder-text">Camera Off</span>
           </div>
         )}
         
-        {isBuzzed && <div className="buzzer-badge">🔔 GEBUZZERT</div>}
+        {isBuzzed && (
+          <div className="buzzer-status-badge">
+            <span className="badge-icon">🔔</span> 
+            ACTIVE
+          </div>
+        )}
 
         {isLocalPlayer && (
-          <button onClick={onToggleCam} className="cam-btn">
+          <button 
+            onClick={onToggleCam} 
+            className={`cam-control-btn ${stream ? 'stop' : 'start'}`}
+            aria-label={stream ? "Stop Camera" : "Start Camera"}
+          >
             {stream ? '📷 Stop' : '📷 Start'}
           </button>
         )}
-      </div>
+      </header>
 
-      <div className="stats-bar">
-        <span className="player-name">{name}</span>
+      <footer className="card-info-bar">
+        <span className="display-name">{name}</span>
+        
         {!hidePoints && (
-          <>
-            <span style={{ color: 'rgba(255,255,255,0.5)' }}>|</span>
-            <span className="player-points">{points}</span>
-          </>
+          <div className="points-container">
+            <span className="separator">|</span>
+            <span className="score-value">{points}</span>
+          </div>
         )}
-      </div>
+      </footer>
     </div>
   );
 };

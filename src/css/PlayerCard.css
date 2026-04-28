@@ -1,34 +1,39 @@
+/* Main Card Container */
 .player-card {
-  border-radius: 12px;
-  overflow: hidden;
+  width: 280px;
   background-color: #000;
-  transition: all 0.2s;
+  border-radius: 12px;
+  border: 2px solid #333;
+  overflow: hidden;
   display: flex;
   flex-direction: column;
-  border: 2px solid #333;
-  width: 280px;
+  transition: all 0.3s ease;
+  position: relative;
 }
 
+/* Highlight if the player buzzed */
 .player-card.is-buzzed {
-  border: 4px solid #22c55e;
-  box-shadow: 0 0 20px rgba(34, 197, 94, 0.5);
+  border-color: #22c55e;
+  box-shadow: 0 0 20px rgba(34, 197, 94, 0.4);
 }
 
-.player-card.is-mod {
+/* Smaller size for the Moderator in the header */
+.player-card.is-moderator-view {
   width: 220px;
 }
 
-.video-placeholder {
+/* Video Section */
+.card-video-container {
+  height: 160px;
   background-color: #111;
   position: relative;
   display: flex;
   align-items: center;
   justify-content: center;
   overflow: hidden;
-  height: 160px;
 }
 
-.player-card.is-mod .video-placeholder {
+.is-moderator-view .card-video-container {
   height: 120px;
 }
 
@@ -38,67 +43,99 @@
   object-fit: cover;
 }
 
-.video-mirrored {
+.video-element.mirrored {
   transform: scaleX(-1);
 }
 
-.cam-btn {
+/* Placeholder for turned off camera */
+.camera-placeholder {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 5px;
+  color: #444;
+}
+
+.placeholder-icon {
+  font-size: 2rem;
+}
+
+.placeholder-text {
+  font-size: 0.7rem;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+}
+
+/* Controls */
+.cam-control-btn {
   position: absolute;
-  bottom: 8px;
-  left: 8px;
-  background-color: rgba(0, 0, 0, 0.7);
+  bottom: 10px;
+  left: 10px;
+  background: rgba(0, 0, 0, 0.7);
   color: white;
   border: 1px solid rgba(255, 255, 255, 0.3);
   border-radius: 6px;
-  padding: 3px 6px;
+  padding: 4px 8px;
   cursor: pointer;
   font-size: 0.7rem;
-  z-index: 20;
-}
-
-.buzzer-badge {
-  position: absolute;
-  top: 8px;
-  right: 8px;
-  background-color: #22c55e;
-  color: white;
-  padding: 4px 8px;
-  border-radius: 5px;
-  font-weight: bold;
-  font-size: 0.75rem;
   z-index: 10;
 }
 
-.stats-bar {
+.cam-control-btn:hover {
+  background: rgba(168, 85, 247, 0.8); /* Purple on hover */
+}
+
+/* Buzzer Badge */
+.buzzer-status-badge {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  background: #22c55e;
+  color: white;
+  padding: 4px 10px;
+  border-radius: 50px;
+  font-weight: bold;
+  font-size: 0.7rem;
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  box-shadow: 0 2px 10px rgba(0,0,0,0.5);
+}
+
+/* Bottom Bar (Stats) */
+.card-info-bar {
+  height: 45px;
+  background-color: #581c87; /* Dark Purple */
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 8px;
-  color: white;
-  font-weight: bold;
-  background-color: #581c87;
-  height: 45px;
-  font-size: 1.1rem;
+  gap: 10px;
+  padding: 0 15px;
 }
 
-.player-card.is-mod .stats-bar {
+.is-moderator-view .card-info-bar {
   background-color: #222;
   height: 35px;
-  font-size: 0.9rem;
 }
 
-.player-name {
-  color: #fff;
+.display-name {
+  color: white;
+  font-weight: bold;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
-.player-points {
+.points-container {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.score-value {
   color: #a855f7;
-  background-color: #fff;
-  padding: 1px 6px;
-  border-radius: 4px;
-}
-
-.camera-off-text {
-  color: #444;
-  text-align: center;
+  background: #fff;
+  padding: 2px 8px;
+  border-radius: 5px;
+  font-weight: bold;
 }

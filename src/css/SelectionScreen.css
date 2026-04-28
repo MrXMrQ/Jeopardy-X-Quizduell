@@ -62,3 +62,16 @@
 .btn-mod:hover {
   background-color: #555;
 }
+
+.selection-form {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  width: 100%;
+}
+
+.selection-footer {
+  margin-top: 1.5rem;
+  opacity: 0.6;
+  font-style: italic;
+}

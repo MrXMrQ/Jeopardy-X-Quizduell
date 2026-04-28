@@ -1,63 +1,125 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import '../css/QuestionOverlay.css';
 
+/**
+ * Interface for the active player data structure
+ */
+interface ActivePlayer {
+  sid: string;
+  name: string;
+}
+
+/**
+ * Interface for the question data structure
+ */
+interface Question {
+  id: string;
+  text: string;
+  answer: string;
+  value: number;
+}
+
 interface OverlayProps {
-  question: any;
+  question: Question;
   isModerator: boolean;
-  showAnswer: boolean;
-  activePlayer: any;
+  activePlayer: ActivePlayer | null;
   buzzerLocked: boolean;
   socket: any;
 }
 
+/**
+ * QuestionOverlay component displays the current question, 
+ * provides moderator controls, and the player buzzer.
+ */
 const QuestionOverlay: React.FC<OverlayProps> = ({ 
   question, 
   isModerator, 
-  showAnswer, 
   activePlayer, 
   buzzerLocked, 
   socket 
 }) => {
+
+  /**
+   * Determine the visual state of the question text.
+   * Blurs the text for players until the moderator arms the buzzers.
+   */
+  const textStyle = useMemo(() => ({
+    filter: (!isModerator && buzzerLocked) ? 'blur(15px)' : 'none',
+    transition: 'filter 0.4s ease-in-out',
+    userSelect: 'none' as const
+  }), [isModerator, buzzerLocked]);
+
   return (
     <div className="question-overlay">
-      <h2 className="question-value">{question.value} Punkte</h2>
-      <p className="question-text">{question.text}</p>
-      
-      {showAnswer && <p className="question-answer">Antwort: {question.answer}</p>}
+      <header className="overlay-header">
+        <h2 className="question-value">{question.value} Points</h2>
+      </header>
 
-      {activePlayer && (
-        <div className="buzzer-info">
-          🔔 {activePlayer.name} hat gebuzzert!
-        </div>
-      )}
+      <main className="overlay-content">
+        <p className="question-text" style={textStyle}>
+          {question.text}
+        </p>
 
-      <div className="controls">
+        {/* The answer is always visible to the moderator for reading out loud */}
+        {isModerator && (
+          <div className="moderator-answer">
+            <strong>Correct Answer:</strong> {question.answer}
+          </div>
+        )}
+
+        {activePlayer && (
+          <div className="buzzer-announcement">
+            <span className="buzzer-icon">🔔</span>
+            <span className="buzzer-name">{activePlayer.name} is answering!</span>
+          </div>
+        )}
+      </main>
+
+      <footer className="overlay-controls">
         {isModerator ? (
-          <>
-            <button onClick={() => socket.emit('arm_buzzer')}>Buzzer Freischalten</button>
-            <button onClick={() => socket.emit('toggle_answer')}>Antwort zeigen</button>
+          <div className="admin-actions">
             <button 
-              className="btn-correct" 
-              onClick={() => socket.emit('resolve_question', { correct: true })}
+              className={`btn-arm ${!buzzerLocked ? 'active' : ''}`}
+              onClick={() => socket.emit('arm_buzzer')}
+              disabled={!buzzerLocked}
             >
-              Richtig
+              {buzzerLocked ? '🔓 Open Buzzers' : '✅ Buzzers Active'}
             </button>
+
+            <div className="resolution-group">
+              <button 
+                className="btn-correct" 
+                onClick={() => socket.emit('resolve_question', { correct: true })}
+                disabled={!activePlayer}
+              >
+                Correct (+)
+              </button>
+              
+              <button 
+                className="btn-wrong" 
+                onClick={() => socket.emit('resolve_question', { correct: false })}
+                disabled={!activePlayer}
+              >
+                Wrong (-)
+              </button>
+            </div>
+
             <button 
-              className="btn-wrong" 
-              onClick={() => socket.emit('resolve_question', { correct: false })}
+              className="btn-skip" 
+              onClick={() => socket.emit('close_question')}
             >
-              Falsch
+              Nobody Knew
             </button>
-            <button onClick={() => socket.emit('close_question')}>Frage überspringen</button>
-          </>
+          </div>
         ) : (
+          /* Player View: Only show buzzer if unlocked and no one has buzzed yet */
           !activePlayer && !buzzerLocked && (
             <button className="big-buzzer" onClick={() => socket.emit('buzz')}>
-              BUZZ
+              BUZZ NOW!
             </button>
           )
         )}
-      </div>
+      </footer>
     </div>
   );
 };
