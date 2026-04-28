@@ -1,125 +1,58 @@
-import React, { useMemo } from 'react';
-import '../css/QuestionOverlay.css';
+import React from 'react';
 
-/**
- * Interface for the active player data structure
- */
-interface ActivePlayer {
-  sid: string;
-  name: string;
-}
-
-/**
- * Interface for the question data structure
- */
-interface Question {
-  id: string;
-  text: string;
-  answer: string;
-  value: number;
-}
-
-interface OverlayProps {
-  question: Question;
-  isModerator: boolean;
-  activePlayer: ActivePlayer | null;
-  buzzerLocked: boolean;
+interface QuestionOverlayProps {
+  gameState: any;
+  role: string;
   socket: any;
 }
 
-/**
- * QuestionOverlay component displays the current question, 
- * provides moderator controls, and the player buzzer.
- */
-const QuestionOverlay: React.FC<OverlayProps> = ({ 
-  question, 
-  isModerator, 
-  activePlayer, 
-  buzzerLocked, 
-  socket 
-}) => {
-
-  /**
-   * Determine the visual state of the question text.
-   * Blurs the text for players until the moderator arms the buzzers.
-   */
-  const textStyle = useMemo(() => ({
-    filter: (!isModerator && buzzerLocked) ? 'blur(15px)' : 'none',
-    transition: 'filter 0.4s ease-in-out',
-    userSelect: 'none' as const
-  }), [isModerator, buzzerLocked]);
-
+const QuestionOverlay: React.FC<QuestionOverlayProps> = ({ gameState, role, socket }) => {
   return (
-    <div className="question-overlay">
-      <header className="overlay-header">
-        <h2 className="question-value">{question.value} Points</h2>
-      </header>
-
-      <main className="overlay-content">
-        <p className="question-text" style={textStyle}>
-          {question.text}
+    <div className="game-overlay">
+      <div className="question-box">
+        <h2 style={{ color: '#a855f7', fontSize: '1.5rem', marginBottom: '10px' }}>
+          {gameState.current_question.value} Punkte
+        </h2>
+        <p className={`question-text-display ${(role === 'player' && gameState.buzzer_locked) ? 'blurred' : ''}`}>
+          {gameState.current_question.text}
         </p>
 
-        {/* The answer is always visible to the moderator for reading out loud */}
-        {isModerator && (
-          <div className="moderator-answer">
-            <strong>Correct Answer:</strong> {question.answer}
-          </div>
-        )}
+        {role === 'moderator' && (
+          <div className="mod-controls">
+            <p style={{ color: '#22c55e', fontSize: '1.8rem', marginBottom: '20px', fontWeight: 'bold' }}>
+              Lösung: {gameState.current_question.answer}
+            </p>
 
-        {activePlayer && (
-          <div className="buzzer-announcement">
-            <span className="buzzer-icon">🔔</span>
-            <span className="buzzer-name">{activePlayer.name} is answering!</span>
-          </div>
-        )}
-      </main>
-
-      <footer className="overlay-controls">
-        {isModerator ? (
-          <div className="admin-actions">
-            <button 
-              className={`btn-arm ${!buzzerLocked ? 'active' : ''}`}
-              onClick={() => socket.emit('arm_buzzer')}
-              disabled={!buzzerLocked}
-            >
-              {buzzerLocked ? '🔓 Open Buzzers' : '✅ Buzzers Active'}
-            </button>
-
-            <div className="resolution-group">
+            <div style={{ display: 'flex', gap: '15px', justifyContent: 'center' }}>
               <button 
-                className="btn-correct" 
-                onClick={() => socket.emit('resolve_question', { correct: true })}
-                disabled={!activePlayer}
+                className="control-btn"
+                style={{ 
+                  backgroundColor: gameState.buzzer_locked ? '#3f3f46' : '#22c55e',
+                  boxShadow: !gameState.buzzer_locked ? '0 0 15px #22c55e' : 'none'
+                }} 
+                onClick={() => socket.emit('arm_buzzer')}
+                disabled={!gameState.buzzer_locked}
               >
-                Correct (+)
+                {gameState.buzzer_locked ? '🔓 Freigeben' : '✅ Aktiv'}
               </button>
-              
-              <button 
-                className="btn-wrong" 
-                onClick={() => socket.emit('resolve_question', { correct: false })}
-                disabled={!activePlayer}
-              >
-                Wrong (-)
-              </button>
+
+              <button className="control-btn" style={{ background: '#16a34a' }} onClick={() => socket.emit('resolve_question', { correct: true })} disabled={!gameState.active_player}>Richtig (+)</button>
+              <button className="control-btn" style={{ background: '#dc2626' }} onClick={() => socket.emit('resolve_question', { correct: false })} disabled={!gameState.active_player}>Falsch (-)</button>
+              <button className="control-btn" style={{ background: '#52525b' }} onClick={() => socket.emit('close_question')}>Niemand wusste es</button>
             </div>
-
-            <button 
-              className="btn-skip" 
-              onClick={() => socket.emit('close_question')}
-            >
-              Nobody Knew
-            </button>
           </div>
-        ) : (
-          /* Player View: Only show buzzer if unlocked and no one has buzzed yet */
-          !activePlayer && !buzzerLocked && (
-            <button className="big-buzzer" onClick={() => socket.emit('buzz')}>
-              BUZZ NOW!
-            </button>
-          )
         )}
-      </footer>
+
+        {role === 'player' && !gameState.buzzer_locked && !gameState.active_player && (
+          <button className="buzzer-btn" onClick={() => socket.emit('buzz')}>JETZT BUZZERN!</button>
+        )}
+
+        {gameState.active_player && (
+          <div style={{ color: '#fbbf24', fontSize: '2.2rem', marginTop: '30px', fontWeight: 'bold' }}>
+            📢 {gameState.active_player.name} antwortet...
+          </div>
+        )}
+      </div>
     </div>
   );
 };

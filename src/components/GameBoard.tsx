@@ -1,32 +1,31 @@
 import React from 'react';
-import '../css/GameBoard.css';
 
-interface BoardProps {
-  boardData: any;
-  openedQuestions: string[];
-  isModerator: boolean;
-  onSelectQuestion: (id: string) => void;
+interface GameBoardProps {
+  gameState: any;
+  role: string;
+  socket: any;
 }
 
-const GameBoard: React.FC<BoardProps> = ({ boardData, openedQuestions, isModerator, onSelectQuestion }) => {
+const GameBoard: React.FC<GameBoardProps> = ({ gameState, role, socket }) => {
   return (
     <div className="board-grid">
-      {boardData.categories.map((cat: any, i: number) => (
-        <div key={i} className="board-column">
+      {gameState.board.categories.map((cat: any) => (
+        <div key={cat.name} className="board-column">
           <div className="category-header">{cat.name}</div>
           {cat.questions.map((q: any) => {
-            const isPlayed = openedQuestions.includes(q.id);
-            const isSelectable = isModerator && !isPlayed;
-
-            const cellClass = `question-cell ${isPlayed ? 'played' : ''} ${isSelectable ? 'selectable' : ''}`;
-
+            const isPlayed = gameState.opened_questions.includes(q.id);
+            const cardClass = `question-card ${isPlayed ? 'played' : 'active'}`;
+            
             return (
-              <div
+              <div 
                 key={q.id}
-                onClick={() => isSelectable && onSelectQuestion(q.id)}
-                className={cellClass}
+                className={cardClass}
+                style={{ 
+                  cursor: (role === 'moderator' && !isPlayed) ? 'pointer' : 'default' 
+                }}
+                onClick={() => role === 'moderator' && !isPlayed && socket.emit('open_question', { question_id: q.id })}
               >
-                {q.value}
+                {isPlayed ? "X" : q.value}
               </div>
             );
           })}
