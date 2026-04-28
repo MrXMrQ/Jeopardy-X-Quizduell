@@ -66,7 +66,7 @@ Since modern browsers block camera access under HTTP by default, exceptions must
 
 - Set the status to Enabled.
 
-- In the text field, enter the address: http://192.168.178.250:5173
+- In the text field, enter the address: http://[YOUR IP]:5173
 
 - Click Relaunch at the bottom right.
 
