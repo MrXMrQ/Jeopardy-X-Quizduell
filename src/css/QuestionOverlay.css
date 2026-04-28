@@ -1,3 +1,4 @@
+/* --- Main Layout --- */
 .question-overlay {
   position: fixed;
   top: 0;
@@ -14,37 +15,41 @@
 
 .question-box {
   background-color: #1a1a1a;
-  padding: 40px;
+  padding: 30px 40px;
   border-radius: 30px;
   border: 3px solid #a855f7;
   text-align: center;
-  max-width: 900px;
+  max-width: 950px;
   width: 90%;
+  max-height: 95vh; /* Verhindert Überlaufen bei viel Inhalt */
+  overflow-y: auto;
   box-shadow: 0 0 50px rgba(168, 85, 247, 0.3);
   display: flex;
   flex-direction: column;
-  gap: 20px;
+  gap: 15px;
 }
 
+/* --- Typography --- */
 .question-value {
-  font-size: 2rem;
+  font-size: 1.8rem;
   color: #fbbf24;
   margin: 0;
 }
 
 .question-text-display {
-  font-size: 2.5rem;
+  font-size: 2.2rem;
   font-weight: bold;
   color: white;
-  margin: 10px 0;
-  line-height: 1.3;
+  margin: 5px 0;
+  line-height: 1.2;
 }
 
+/* --- Media & Hints --- */
 .image-section {
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 25px;
+  gap: 20px;
   margin: 10px 0;
 }
 
@@ -53,65 +58,93 @@
   border-radius: 15px;
   overflow: hidden;
   border: 2px solid #333;
+  background: #000;
 }
 
 .main-quiz-image {
-  max-height: 350px;
+  max-height: 300px; /* Etwas kleiner, um Platz für Lösung/Tipps zu lassen */
   display: block;
   object-fit: contain;
 }
 
 .hints-gallery {
   display: flex;
-  gap: 20px;
-  justify-content: center;
-}
-
-.hint-card {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-}
-
-.hint-image-clear {
-  width: 140px;
-  height: 140px;
-  object-fit: cover;
-  border-radius: 12px;
-  border: 3px solid #a855f7;
-}
-
-.hint-label {
-  color: #a855f7;
-  font-weight: bold;
-  font-size: 0.8rem;
-  margin-top: 5px;
-}
-
-.mod-controls {
-  display: flex;
-  flex-direction: column;
-  gap: 15px;
-  width: 100%;
-}
-
-.mod-answer-preview {
-  color: #22c55e;
-  font-size: 1.6rem;
-  margin-bottom: 10px;
-}
-
-.control-group, 
-.resolution-group {
-  display: flex;
   gap: 15px;
   justify-content: center;
   flex-wrap: wrap;
 }
 
+.hint-image-clear {
+  width: 130px;
+  height: 130px;
+  object-fit: cover;
+  border-radius: 12px;
+  border: 3px solid #a855f7;
+  box-shadow: 0 5px 15px rgba(0,0,0,0.5);
+}
+
+.hint-label {
+  color: #a855f7;
+  font-weight: bold;
+  font-size: 0.75rem;
+  margin-top: 5px;
+  text-transform: uppercase;
+}
+
+/* --- NEW: Solution Banner --- */
+.solution-banner {
+  margin-top: 15px;
+  padding: 15px 25px;
+  background: rgba(34, 197, 94, 0.15);
+  border: 2px solid #22c55e;
+  border-radius: 15px;
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  animation: fadeInEffect 0.5s ease-out;
+}
+
+.solution-label {
+  color: #22c55e;
+  font-size: 0.9rem;
+  text-transform: uppercase;
+  font-weight: bold;
+  letter-spacing: 1px;
+}
+
+.solution-text {
+  color: white;
+  font-size: 2rem;
+  font-weight: bold;
+}
+
+/* --- Controls & Buttons --- */
+.mod-controls {
+  display: flex;
+  flex-direction: column;
+  gap: 15px;
+  width: 100%;
+  margin-top: 10px;
+}
+
+.mod-answer-preview {
+  color: #22c55e;
+  font-size: 1.4rem;
+  margin: 0;
+  font-style: italic;
+}
+
+.control-group, 
+.resolution-group {
+  display: flex;
+  gap: 12px;
+  justify-content: center;
+  flex-wrap: wrap;
+}
+
 .mod-controls button {
-  padding: 12px 24px;
-  font-size: 1rem;
+  padding: 10px 20px;
+  font-size: 0.95rem;
   font-weight: bold;
   cursor: pointer;
   border: none;
@@ -120,11 +153,27 @@
   transition: all 0.2s ease;
 }
 
-.mod-controls button:disabled {
-  opacity: 0.3;
-  cursor: not-allowed;
+/* --- NEW: Post-Resolve Button --- */
+.post-resolve-controls {
+  display: flex;
+  justify-content: center;
+  padding: 10px 0;
 }
 
+.btn-close-overlay {
+  background-color: #a855f7;
+  color: white;
+  padding: 18px 45px !important;
+  font-size: 1.4rem !important;
+  box-shadow: 0 0 20px rgba(168, 85, 247, 0.4);
+}
+
+.btn-close-overlay:hover {
+  transform: scale(1.05);
+  background-color: #9333ea;
+}
+
+/* Button Colors */
 .btn-arm { background-color: #3f3f46; }
 .btn-arm.active { background-color: #22c55e; box-shadow: 0 0 15px rgba(34, 197, 94, 0.4); }
 .btn-hint { background-color: #7c3aed; }
@@ -132,42 +181,60 @@
 .btn-wrong { background-color: #dc2626; }
 .btn-skip { background-color: #52525b; }
 
-.big-buzzer {
-  width: 200px;
-  height: 200px;
-  border-radius: 50%;
-  background-color: #dc2626;
-  border: 10px solid #800000;
-  color: white;
-  font-size: 2.5rem;
-  font-weight: bold;
-  cursor: pointer;
-  box-shadow: 0 0 30px rgba(255, 0, 0, 0.5);
-  animation: pulseEffect 1.5s infinite;
-}
-
+/* Status Messages */
 .buzzer-announcement {
-  font-size: 2rem;
+  font-size: 1.8rem;
   color: #fbbf24;
   font-weight: bold;
-  padding: 20px;
-  border: none; 
+  padding: 15px;
   border-radius: 15px;
-  margin: 20px 0;
   background-color: rgba(251, 191, 36, 0.1); 
-  box-shadow: 0 0 15px rgba(251, 191, 36, 0.3);
+  box-shadow: 0 0 15px rgba(251, 191, 36, 0.2);
 }
 
+.big-buzzer {
+  width: 220px;
+  height: 220px;
+  border-radius: 50%;
+  background-color: #dc2626;
+  border: 8px solid #800000;
+  color: white;
+  font-size: 2.8rem;
+  font-weight: bold;
+  box-shadow: 0 0 40px rgba(220, 38, 38, 0.4);
+}
+
+/* --- Animations --- */
 @keyframes fadeInEffect {
-  from { opacity: 0; transform: translateY(20px); }
+  from { opacity: 0; transform: translateY(15px); }
   to { opacity: 1; transform: translateY(0); }
 }
 
 @keyframes pulseEffect {
   0% { transform: scale(1); }
-  50% { transform: scale(1.05); }
+  50% { transform: scale(1.03); }
   100% { transform: scale(1); }
 }
 
-.fadeIn { animation: fadeInEffect 0.6s ease-out forwards; }
+.fadeIn { animation: fadeInEffect 0.5s ease-out forwards; }
 .pulse { animation: pulseEffect 1.5s infinite; }
+
+/* --- Button Disabled Styles --- */
+.mod-controls button:disabled {
+  opacity: 0.4;            /* Macht den Button blasser */
+  cursor: not-allowed;     /* Zeigt das "Verboten"-Symbol beim Hover */
+  filter: grayscale(0.8);  /* Entzieht die Farbe, damit es inaktiv wirkt */
+  transform: scale(1) !important; /* Verhindert Hover-Effekte */
+  box-shadow: none !important;
+}
+
+/* Optional: Ein spezieller Look für den Skip-Button im disabled-Zustand */
+.btn-skip:disabled {
+  border: 1px dashed #52525b;
+  background-color: #27272a;
+}
+
+/* Verhindert, dass deaktivierte Buttons bei Hover noch leuchten */
+.mod-controls button:disabled:hover {
+  background-color: inherit;
+}

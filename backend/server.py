@@ -26,6 +26,7 @@ class JeopardyGame:
         self.board: Dict[str, Any] = self._load_board(board_file)
         self.revealed_hints: int = 0
         self.question_revealed: bool = False
+        self.is_resolved: bool = False
 
     def _load_board(self, filename: str) -> Dict[str, Any]:
         """Loads the quiz board from a JSON file."""
@@ -65,6 +66,7 @@ class JeopardyGame:
         self.buzzer_locked = True
         self.active_player = None
         self.question_revealed = False
+        self.is_resolved = False
 
     def next_turn(self):
         """Rotates the turn to the next player in order."""
@@ -101,7 +103,8 @@ class JeopardyGame:
             "current_turn_index": self.current_turn_index,
             "current_chooser": self.get_chooser_name(),
             "revealed_hints": self.revealed_hints,
-            "question_revealed": self.question_revealed
+            "question_revealed": self.question_revealed,
+            "is_resolved": self.is_resolved
         }
 
 # --- Server Setup ---
@@ -170,16 +173,17 @@ async def resolve_question(sid, data):
     if sid == game.moderator_sid and game.active_player:
         player_sid = game.active_player['sid']
         value = game.current_question['value']
+        
         if data.get('correct'):
             game.players[player_sid]['points'] += value
-            game.opened_questions.append(game.current_question['id'])
-            game.current_question = None
-            game.active_player = None
-            game.next_turn()
+            game.is_resolved = True # Mark as solved, but don't close yet!
+            game.buzzer_locked = True
+            logger.info(f"Question resolved as correct for {game.players[player_sid]['name']}")
         else:
             game.players[player_sid]['points'] -= int(value / 2)
             game.active_player = None
             game.buzzer_locked = False 
+            
         await broadcast_state()
 
 @sio.event
