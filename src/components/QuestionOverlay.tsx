@@ -17,7 +17,8 @@ interface QuestionOverlayProps {
     active_player: { sid: string; name: string } | null;
     revealed_hints: number;
     question_revealed: boolean;
-    is_resolved: boolean; // Flag from backend
+    is_resolved: boolean;
+    remaining_questions: number; // Added from backend state
   };
   role: string;
   socket: any;
@@ -34,14 +35,16 @@ const QuestionOverlay: React.FC<QuestionOverlayProps> = ({ gameState, role, sock
   const isModerator = role === 'moderator';
   const isPlayerActive = !!gameState.active_player;
 
-  // Visual helper: Show everything clearly if moderator is viewing, 
-  // if the question was revealed, or if it has been solved.
+  // Double Points Logic
+  // The backend already decremented remaining_questions when this was opened, 
+  // so if it was opened while there were 5 or fewer unplayed, we double it.
+  // Actually, since the backend logic counts "unresolved" or "not in opened_questions",
+  // we check if remaining <= 5.
+  const isDouble = (gameState.remaining_questions || 99) <= 5;
+  const displayValue = isDouble ? question.value * 2 : question.value;
+
   const forceShowEverything = isModerator || gameState.question_revealed || isResolved;
 
-  /**
-   * Blur style for text and main image.
-   * Stays blurred only for players until the question is revealed or resolved.
-   */
   const blurStyle = useMemo(() => ({
     filter: (!isModerator && !forceShowEverything) ? 'blur(25px)' : 'none',
     transition: 'filter 0.5s ease-in-out',
@@ -49,10 +52,13 @@ const QuestionOverlay: React.FC<QuestionOverlayProps> = ({ gameState, role, sock
   }), [isModerator, forceShowEverything]);
 
   return (
-    <div className="question-overlay">
-      <div className="question-box">
+    <div className={`question-overlay ${isDouble ? 'double-points-active' : ''}`}>
+      <div className={`question-box ${isDouble ? 'highlight-gold' : ''}`}>
         <header className="overlay-header">
-          <h2 className="question-value">{question.value} Points</h2>
+          <h2 className="question-value">
+            {isDouble && <span className="bonus-label">DOUBLE: </span>}
+            {displayValue} Points
+          </h2>
         </header>
 
         <main className="overlay-content">
@@ -69,7 +75,7 @@ const QuestionOverlay: React.FC<QuestionOverlayProps> = ({ gameState, role, sock
               </div>
             )}
 
-            {/* Hint Gallery: Shown clear if revealed manually OR if the question is resolved */}
+            {/* Hint Gallery */}
             {question.hints && (
               <div className="hints-gallery">
                 {question.hints.map((hintUrl, index) => (
@@ -91,7 +97,7 @@ const QuestionOverlay: React.FC<QuestionOverlayProps> = ({ gameState, role, sock
             </div>
           )}
 
-          {/* Solution Banner: Only visible after moderator marked it as correct */}
+          {/* Solution Banner */}
           {isResolved && (
             <div className="solution-banner fadeIn">
               <span className="solution-label">Lösung:</span>
@@ -104,7 +110,6 @@ const QuestionOverlay: React.FC<QuestionOverlayProps> = ({ gameState, role, sock
           {isModerator ? (
             <div className="mod-controls">
               {!isResolved ? (
-                /* Normal Phase: Controls to arm buzzers, reveal hints or resolve */
                 <>
                   <p className="mod-answer-preview">Solution: {question.answer}</p>
                   <div className="control-group">
@@ -124,7 +129,6 @@ const QuestionOverlay: React.FC<QuestionOverlayProps> = ({ gameState, role, sock
                   </div>
 
                   <div className="resolution-group">
-                    {/* Correct/Wrong: Nur aktiv, WENN jemand gebuzzert hat */}
                     <button 
                       className="btn-correct" 
                       onClick={() => socket.emit('resolve_question', { correct: true })} 
@@ -141,7 +145,6 @@ const QuestionOverlay: React.FC<QuestionOverlayProps> = ({ gameState, role, sock
                       Wrong (-)
                     </button>
 
-                    {/* Skip: Nur aktiv, wenn NIEMAND gebuzzert hat */}
                     <button 
                       className="btn-skip" 
                       onClick={() => socket.emit('close_question')}
@@ -152,7 +155,6 @@ const QuestionOverlay: React.FC<QuestionOverlayProps> = ({ gameState, role, sock
                   </div>
                 </>
               ) : (
-                /* Resolved Phase: Only the close button to return to the board */
                 <div className="post-resolve-controls">
                   <button className="btn-close-overlay pulse" onClick={() => socket.emit('close_question')}>
                     Overlay schließen & weiter ➔
@@ -161,7 +163,6 @@ const QuestionOverlay: React.FC<QuestionOverlayProps> = ({ gameState, role, sock
               )}
             </div>
           ) : (
-            /* Player View: Buzzer */
             (!isPlayerActive && !gameState.buzzer_locked && !isResolved) && (
               <button className="big-buzzer" onClick={() => socket.emit('buzz')}>
                 BUZZ!

@@ -80,6 +80,11 @@ class JeopardyGame:
         current_sid = self.player_order[self.current_turn_index]
         return self.players.get(current_sid, {}).get('name', "Unknown")
 
+    def get_remaining_questions_count(self) -> int:
+        """NEW: Calculates how many questions are left on the board."""
+        total_questions = sum(len(cat['questions']) for cat in self.board.get('categories', []))
+        return total_questions - len(self.opened_questions)
+
     def reset(self, reset_points: bool = True):
         """Resets the entire game session."""
         self.opened_questions = []
@@ -104,7 +109,8 @@ class JeopardyGame:
             "current_chooser": self.get_chooser_name(),
             "revealed_hints": self.revealed_hints,
             "question_revealed": self.question_revealed,
-            "is_resolved": self.is_resolved
+            "is_resolved": self.is_resolved,
+            "remaining_questions": self.get_remaining_questions_count()
         }
 
 # --- Server Setup ---
@@ -149,7 +155,7 @@ async def open_question(sid, data):
             for q in cat['questions']:
                 if q['id'] == q_id:
                     game.current_question = q
-                    game.reset_question_state() # Reset hints and locks for the new question
+                    game.reset_question_state()
                     break
         await broadcast_state()
 
@@ -174,15 +180,22 @@ async def resolve_question(sid, data):
         player_sid = game.active_player['sid']
         value = game.current_question['value']
         
+        # Calculate if we are in the final 5 questions phase
+        remaining = game.get_remaining_questions_count()
+        if remaining <= 5:
+            value *= 2 # Double the value!
+        
         if data.get('correct'):
             game.players[player_sid]['points'] += value
-            game.is_resolved = True # Mark as solved, but don't close yet!
+            game.is_resolved = True 
             game.buzzer_locked = True
-            logger.info(f"Question resolved as correct for {game.players[player_sid]['name']}")
+            logger.info(f"Question resolved as correct for {game.players[player_sid]['name']} (+{value})")
         else:
+            # Deducting half points as per original logic, but now using the potentially doubled value
             game.players[player_sid]['points'] -= int(value / 2)
             game.active_player = None
             game.buzzer_locked = False 
+            logger.info(f"Question resolved as wrong for {game.players[player_sid]['name']} (-{int(value/2)})")
             
         await broadcast_state()
 
@@ -197,7 +210,6 @@ async def close_question(sid):
 
 @sio.event
 async def reveal_next_hint(sid):
-    """Increment the revealed hint counter for Image-Mix questions."""
     if sid == game.moderator_sid and game.current_question:
         game.revealed_hints += 1
         await broadcast_state()
