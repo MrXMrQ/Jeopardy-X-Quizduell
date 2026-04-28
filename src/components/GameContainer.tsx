@@ -1,8 +1,9 @@
 import React, { useEffect, useState } from 'react';
 import PlayerCard from './PlayerCard';
-import GameBoard from './GameBoard';             // Neu zu erstellende Komponente
-import QuestionOverlay from './QuestionOverlay'; // Neu zu erstellende Komponente
-import WinnerOverlay from './WinnerOverlay';     // Neu zu erstellende Komponente
+import GameBoard from './GameBoard';             
+import QuestionOverlay from './QuestionOverlay';
+import WinnerOverlay from './WinnerOverlay';    
+import { useGameEffects } from '../hooks/useGameEffects';
 import { useWebRTC } from '../hooks/useWebRTC';
 import { useBuzzer } from '../hooks/useBuzzer';
 import '../css/GameContainer.css';
@@ -25,6 +26,8 @@ const GameContainer: React.FC<Props> = ({ socket, role, userName }) => {
   // 2. Custom Hooks für komplexe Logik
   const { myStream, remoteStreams, handleToggleCam } = useWebRTC(socket, gameState);
   useBuzzer(socket, role, gameState);
+
+  useGameEffects(gameState, socket.id);
 
   // 3. Helper-Funktionen
   const allQuestionsOpened = gameState?.board?.categories?.every((cat: any) => 
