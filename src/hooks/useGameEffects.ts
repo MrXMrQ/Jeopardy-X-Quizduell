@@ -10,16 +10,18 @@ interface GameState {
   buzzer_locked: boolean;
   active_player: Player | null;
   players: Record<string, Player>;
-  is_resolved?: boolean; // Added for better detection
+  is_resolved?: boolean;
 }
 
 export const useGameEffects = (gameState: GameState | null, masterVolume: number) => {
   const prevGameState = useRef<GameState | null>(null);
   
+  // Refs for audio objects
   const sfxRef = useRef<Record<string, HTMLAudioElement>>({});
   const waitMusicRef = useRef<HTMLAudioElement | null>(null);
   const thinkMusicRef = useRef<HTMLAudioElement | null>(null);
 
+  // Initialize Audio
   useEffect(() => {
     sfxRef.current = {
       open: new Audio('/sounds/question_open.mp3'),
@@ -41,9 +43,10 @@ export const useGameEffects = (gameState: GameState | null, masterVolume: number
         m.pause();
         m.src = '';
       });
-    };
+    }
   }, []);
 
+  // Sync volumes
   useEffect(() => {
     Object.values(sfxRef.current).forEach(audio => {
       audio.volume = masterVolume;
@@ -52,14 +55,10 @@ export const useGameEffects = (gameState: GameState | null, masterVolume: number
     if (thinkMusicRef.current) thinkMusicRef.current.volume = 0.4 * masterVolume;
   }, [masterVolume]);
 
-  const playSfx = (name: string) => {
-    const sound = sfxRef.current[name];
-    if (sound) {
-      sound.currentTime = 0; 
-      sound.play().catch(e => console.warn(`Autoplay blocked: ${name}`, e));
-    }
-  };
-
+  /**
+   * Helper: Only stops loopable background music.
+   * Does NOT touch the SFX objects.
+   */
   const stopAmbientMusic = () => {
     if (waitMusicRef.current) {
       waitMusicRef.current.pause();
@@ -71,54 +70,75 @@ export const useGameEffects = (gameState: GameState | null, masterVolume: number
     }
   };
 
+  const playSfx = (name: string) => {
+    const sound = sfxRef.current[name];
+    if (sound) {
+      sound.currentTime = 0;
+      sound.play().catch(e => console.warn(`SFX play failed: ${name}`, e));
+    }
+  };
+
   useEffect(() => {
     if (!gameState) return;
     const prev = prevGameState.current;
 
-    // 1. Question just opened
+    // 1. Question opened
     if (gameState.current_question && !prev?.current_question) {
       playSfx('open');
     }
 
-    // 2. STOP MUSIC: If question was just resolved (Moderator clicked correct)
-    if (gameState.is_resolved && !prev?.is_resolved) {
+    // 2. DETECT CORRECT ANSWER (The trigger for your sound)
+    // We check if the question is now resolved OR if points increased while active_player was present
+    const isNowResolved = gameState.is_resolved && !prev?.is_resolved;
+    
+    // Check if points increased for the player who was just active
+    let wasCorrect = false;
+    if (prev?.active_player) {
+      const sid = prev.active_player.sid;
+      if ((gameState.players[sid]?.points || 0) > (prev.players[sid]?.points || 0)) {
+        wasCorrect = true;
+      }
+    }
+
+    if (isNowResolved || wasCorrect) {
+      // ORDER IS KEY: Stop music first, then play SFX
       stopAmbientMusic();
+      playSfx('correct');
+      prevGameState.current = gameState; // Update prev early to prevent double triggers
+      return; // Exit here so we don't trigger other music phases in the same cycle
     }
 
     // 3. Phase: Waiting for buzzer
     const isWaitingForBuzzer = !gameState.buzzer_locked && !gameState.active_player && !gameState.is_resolved;
-    const wasNotWaiting = prev?.buzzer_locked || prev?.active_player || prev?.is_resolved;
-    
-    if (isWaitingForBuzzer && wasNotWaiting) {
-      stopAmbientMusic(); // Ensure everything is quiet before starting wait music
-      waitMusicRef.current?.play().catch(() => {});
+    if (isWaitingForBuzzer) {
+      if (waitMusicRef.current?.paused) {
+        if (thinkMusicRef.current) {
+          thinkMusicRef.current.pause();
+          thinkMusicRef.current.currentTime = 0;
+        }
+        waitMusicRef.current.play().catch(() => {});
+      }
     }
 
     // 4. Phase: Player buzzed
     if (gameState.active_player && !prev?.active_player) {
-      stopAmbientMusic();
+      waitMusicRef.current?.pause(); // Don't reset time, we might need to continue later
       playSfx('buzzer');
       thinkMusicRef.current?.play().catch(() => {});
     }
 
-    // 5. Evaluation: Point change detection
-    if (!gameState.active_player && prev?.active_player) {
-      const activeSid = prev.active_player.sid;
-      const oldPoints = prev.players[activeSid]?.points || 0;
-      const newPoints = gameState.players[activeSid]?.points || 0;
-
-      // Always stop the 'think' music when the player is no longer active
-      stopAmbientMusic();
-
-      if (newPoints > oldPoints) {
-        playSfx('correct');
-      } else if (newPoints < oldPoints) {
-        playSfx('wrong');
-        // If wrong, Phase 3 will automatically restart wait music if buzzers re-arm
+    // 5. Evaluation: WRONG answer
+    // We already handled 'correct' in step 2. Here we handle 'wrong'.
+    if (!gameState.active_player && prev?.active_player && !wasCorrect) {
+      playSfx('wrong');
+      // Stop think music, let Phase 3 restart wait music
+      if (thinkMusicRef.current) {
+        thinkMusicRef.current.pause();
+        thinkMusicRef.current.currentTime = 0;
       }
     }
 
-    // 6. Reset: Overlay closed
+    // 6. Reset
     if (!gameState.current_question && prev?.current_question) {
       stopAmbientMusic();
     }
