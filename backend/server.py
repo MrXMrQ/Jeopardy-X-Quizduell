@@ -14,7 +14,7 @@ class JeopardyGame:
     """
     Manages the core logic, player states, and board progression of the Jeopardy game.
     """
-    def __init__(self, board_file: str = "./questions/board_1.json"):
+    def __init__(self, board_file: str = "./questions/example_1.json"):
         self.players: Dict[str, Dict[str, Any]] = {}
         self.player_order: List[str] = []
         self.moderator_sid: Optional[str] = None
@@ -24,6 +24,8 @@ class JeopardyGame:
         self.active_player: Optional[Dict[str, str]] = None
         self.current_turn_index: int = 0
         self.board: Dict[str, Any] = self._load_board(board_file)
+        self.revealed_hints: int = 0
+        self.question_revealed: bool = False
 
     def _load_board(self, filename: str) -> Dict[str, Any]:
         """Loads the quiz board from a JSON file."""
@@ -52,11 +54,17 @@ class JeopardyGame:
             
         if sid in self.player_order:
             self.player_order.remove(sid)
-            # Ensure turn index stays within bounds
             if self.player_order:
                 self.current_turn_index %= len(self.player_order)
             else:
                 self.current_turn_index = 0
+                
+    def reset_question_state(self):
+        """Resets question-specific state variables for a new round."""
+        self.revealed_hints = 0
+        self.buzzer_locked = True
+        self.active_player = None
+        self.question_revealed = False
 
     def next_turn(self):
         """Rotates the turn to the next player in order."""
@@ -71,18 +79,17 @@ class JeopardyGame:
         return self.players.get(current_sid, {}).get('name', "Unknown")
 
     def reset(self, reset_points: bool = True):
-        """Resets the game session while keeping connected players."""
+        """Resets the entire game session."""
         self.opened_questions = []
         self.current_question = None
-        self.active_player = None
-        self.buzzer_locked = True
+        self.reset_question_state()
         if reset_points:
             for sid in self.players:
                 self.players[sid]['points'] = 0
-        logger.info("Game state has been reset.")
+        logger.info("Game state has been fully reset.")
 
     def get_full_state(self) -> Dict[str, Any]:
-        """Returns the complete serializable state for frontend synchronization."""
+        """Returns the full state for frontend synchronization."""
         return {
             "board": self.board,
             "players": self.players,
@@ -92,7 +99,9 @@ class JeopardyGame:
             "buzzer_locked": self.buzzer_locked,
             "active_player": self.active_player,
             "current_turn_index": self.current_turn_index,
-            "current_chooser": self.get_chooser_name()
+            "current_chooser": self.get_chooser_name(),
+            "revealed_hints": self.revealed_hints,
+            "question_revealed": self.question_revealed
         }
 
 # --- Server Setup ---
@@ -102,21 +111,7 @@ sio.attach(app)
 game = JeopardyGame()
 
 async def broadcast_state():
-    """Utility to sync all clients with the current game state."""
     await sio.emit('state_update', game.get_full_state())
-
-# --- HTTP Routes ---
-async def health_check(request) -> web.Response:
-    """Status endpoint for monitoring."""
-    return web.json_response({
-        "status": "online",
-        "players_count": len(game.players),
-        "moderator_active": game.moderator_sid is not None
-    })
-
-app.router.add_get('/health', health_check)
-
-# --- Socket.io Event Handlers ---
 
 @sio.event
 async def connect(sid, environ):
@@ -132,7 +127,6 @@ async def join_game(sid, data):
     role = data.get('role')
     if role == 'moderator':
         game.moderator_sid = sid
-        logger.info(f"Moderator assigned: {sid}")
     else:
         name = data.get('name', f"Player {len(game.players) + 1}")
         game.add_player(sid, name)
@@ -146,62 +140,50 @@ async def handle_peer_id(sid, data):
 
 @sio.event
 async def open_question(sid, data):
-    if sid != game.moderator_sid:
-        return
-    
-    q_id = data.get('question_id')
-    # Find question in board categories
-    for cat in game.board['categories']:
-        for q in cat['questions']:
-            if q['id'] == q_id:
-                game.current_question = q
-                game.buzzer_locked = True
-                game.active_player = None
-                break
-    await broadcast_state()
+    if sid == game.moderator_sid:
+        q_id = data.get('question_id')
+        for cat in game.board['categories']:
+            for q in cat['questions']:
+                if q['id'] == q_id:
+                    game.current_question = q
+                    game.reset_question_state() # Reset hints and locks for the new question
+                    break
+        await broadcast_state()
 
 @sio.event
 async def arm_buzzer(sid):
     if sid == game.moderator_sid:
         game.buzzer_locked = False
+        game.question_revealed = True
         await broadcast_state()
 
 @sio.event
 async def buzz(sid):
-    """Handles buzzer press: first valid press locks others out."""
     if not game.buzzer_locked and game.current_question and not game.active_player:
         if sid in game.players:
             game.buzzer_locked = True
             game.active_player = {"sid": sid, "name": game.players[sid]["name"]}
-            logger.info(f"Buzzer hit by: {game.active_player['name']}")
             await broadcast_state()
 
 @sio.event
 async def resolve_question(sid, data):
-    """Moderator resolves the current question as correct or incorrect."""
-    if sid != game.moderator_sid or not game.active_player or not game.current_question:
-        return
-
-    player_sid = game.active_player['sid']
-    value = game.current_question['value']
-
-    if data.get('correct'):
-        game.players[player_sid]['points'] += value
-        game.opened_questions.append(game.current_question['id'])
-        game.current_question = None
-        game.active_player = None
-        game.next_turn()
-    else:
-        # Penalty for wrong answer (e.g., half the value)
-        game.players[player_sid]['points'] -= int(value / 2)
-        game.active_player = None
-        game.buzzer_locked = False # Allow others to buzz in
-    
-    await broadcast_state()
+    if sid == game.moderator_sid and game.active_player:
+        player_sid = game.active_player['sid']
+        value = game.current_question['value']
+        if data.get('correct'):
+            game.players[player_sid]['points'] += value
+            game.opened_questions.append(game.current_question['id'])
+            game.current_question = None
+            game.active_player = None
+            game.next_turn()
+        else:
+            game.players[player_sid]['points'] -= int(value / 2)
+            game.active_player = None
+            game.buzzer_locked = False 
+        await broadcast_state()
 
 @sio.event
 async def close_question(sid):
-    """Closes a question if no one can answer it."""
     if sid == game.moderator_sid and game.current_question:
         game.opened_questions.append(game.current_question['id'])
         game.current_question = None
@@ -210,8 +192,14 @@ async def close_question(sid):
         await broadcast_state()
 
 @sio.event
+async def reveal_next_hint(sid):
+    """Increment the revealed hint counter for Image-Mix questions."""
+    if sid == game.moderator_sid and game.current_question:
+        game.revealed_hints += 1
+        await broadcast_state()
+
+@sio.event
 async def reset_game(sid):
-    """Global reset triggered by moderator."""
     if sid == game.moderator_sid:
         game.reset()
         await broadcast_state()
