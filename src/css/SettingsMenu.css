@@ -1,0 +1,58 @@
+.settings-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: rgba(0, 0, 0, 0.85);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 9999;
+  backdrop-filter: blur(4px); /* Slight blur for modern look */
+}
+
+.settings-modal {
+  background: #18181b;
+  padding: 30px;
+  border-radius: 15px;
+  width: 320px;
+  border: 2px solid #a855f7;
+  box-shadow: 0 0 25px rgba(168, 85, 247, 0.3);
+}
+
+.settings-title {
+  margin-top: 0;
+  color: #a855f7;
+  text-align: center;
+  font-size: 1.5rem;
+}
+
+.settings-group {
+  margin: 30px 0;
+}
+
+.settings-label {
+  display: block;
+  margin-bottom: 12px;
+  color: white;
+  font-weight: bold;
+  font-size: 1rem;
+}
+
+.volume-slider {
+  width: 100%;
+  cursor: pointer;
+  accent-color: #a855f7; /* Makes the slider purple */
+}
+
+.settings-close-btn {
+  background: #52525b;
+  width: 100%;
+  margin-top: 10px;
+  transition: background 0.2s ease;
+}
+
+.settings-close-btn:hover {
+  background: #71717a;
+}

@@ -304,3 +304,33 @@
   color: #555;
   cursor: default;
 }
+
+.settings-button-container {
+  position: relative;
+  width: 100%;
+}
+
+.settings-toggle-btn {
+  position: absolute;
+  bottom: 10px;
+  right: 20px;
+  z-index: 10;
+  background: #3f3f46;
+  border: 1px solid #a855f7;
+  border-radius: 50%;
+  width: 45px;
+  height: 45px;
+  font-size: 1.4rem;
+  cursor: pointer;
+  box-shadow: 0 0 10px rgba(168, 85, 247, 0.3);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.settings-toggle-btn:hover {
+  transform: scale(1.1);
+  box-shadow: 0 0 15px rgba(168, 85, 247, 0.6);
+  background: #52525b;
+}

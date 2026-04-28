@@ -113,26 +113,10 @@ const GameContainer: React.FC<Props> = ({ socket, role, userName }) => {
       />
 
       {/* --- SETTINGS BUTTON --- */}
-      <div style={{ position: 'relative', width: '100%' }}>
+      <div className="settings-button-container">
         <button 
+          className="settings-toggle-btn"
           onClick={() => setIsSettingsOpen(true)}
-          style={{ 
-            position: 'absolute', 
-            bottom: '10px', 
-            right: '20px', 
-            zIndex: 10,
-            background: '#3f3f46', 
-            border: '1px solid #a855f7', 
-            borderRadius: '50%', 
-            width: '45px', 
-            height: '45px', 
-            fontSize: '1.4rem', 
-            cursor: 'pointer',
-            boxShadow: '0 0 10px rgba(168, 85, 247, 0.3)',
-            display: 'flex',
-            justifyContent: 'center',
-            alignItems: 'center'
-          }}
           title="Settings"
         >
           ⚙️
