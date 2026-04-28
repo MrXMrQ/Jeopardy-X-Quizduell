@@ -14,7 +14,7 @@ class JeopardyGame:
     """
     Manages the core logic, player states, and board progression of the Jeopardy game.
     """
-    def __init__(self, board_file: str = "./questions/example_1.json"):
+    def __init__(self, board_file: str = "./questions/test_board.json"):
         self.players: Dict[str, Dict[str, Any]] = {}
         self.player_order: List[str] = []
         self.moderator_sid: Optional[str] = None
